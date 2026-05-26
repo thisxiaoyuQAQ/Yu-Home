@@ -7,11 +7,11 @@ const ProjectsParticles = dynamic(() => import('./ProjectsParticles'), { ssr: fa
 
 const projects = [
   {
-    title: 'Project One',
-    description: '一个创新的 Web 应用，专注于提供卓越的用户体验',
+    title: 'Yu-Blog',
+    description: '由astro驱动的个人博客',
     tags: ['React', 'TypeScript', 'Tailwind'],
     image: '/projects/01.jpg',
-  },
+  },/*
   {
     title: 'Project Two',
     description: '3D 可视化项目，探索 WebGL 技术的无限可能',
@@ -29,7 +29,7 @@ const projects = [
     description: '移动端应用，提供流畅的跨平台体验',
     tags: ['React Native', 'TypeScript'],
     image: '/projects/04.jpg',
-  },
+  },*/
 ]
 
 function ProjectCard({ project, index, isVisible }: { project: typeof projects[0]; index: number; isVisible: boolean }) {

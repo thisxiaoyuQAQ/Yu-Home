@@ -6,9 +6,9 @@ import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 const ContactParticles = dynamic(() => import('./ContactParticles'), { ssr: false })
 
 const contacts = [
-  { label: 'Email', value: 'hello@yu.dev', href: 'mailto:hello@yu.dev', icon: '✉' },
-  { label: 'GitHub', value: 'github.com/yu', href: 'https://github.com/yu', icon: '⌘' },
-  { label: 'Twitter', value: '@yu', href: 'https://twitter.com/yu', icon: '✦' },
+  { label: 'Email', value: 'minecraftxy@163.com', href: 'mailto:minecraftxy@163.com', icon: '✉' },
+  { label: 'GitHub', value: 'thisxiaoyuQAQ', href: 'https://github.com/thisxiaoyuQAQ', icon: '⌘' },
+  { label: 'WeChat', value: 'starleap_xiaoyu', href: '#', icon: '💬' },
 ]
 
 export default function Contact() {
@@ -77,7 +77,7 @@ export default function Contact() {
         <div className={`mt-24 transition-all duration-800 delay-500 ease-out-expo ${linksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/20 to-transparent mx-auto mb-8" />
           <p className="text-white/20 text-sm tracking-wider">
-            © 2024 Yu. Crafted with passion.
+            © 2025 Zhi Yu. Crafted with passion.
           </p>
         </div>
       </div>

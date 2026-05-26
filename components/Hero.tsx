@@ -26,7 +26,7 @@ export default function Hero() {
       <div className="relative z-10 text-center px-6">
         <div className={`transition-all duration-1000 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <h1 className="text-7xl md:text-display-xl lg:text-display-2xl font-bold tracking-tighter text-gradient">
-            Yu
+            Zhi Yu
           </h1>
         </div>
         

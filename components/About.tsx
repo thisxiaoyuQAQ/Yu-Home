@@ -35,7 +35,7 @@ export default function About() {
           className={`space-y-8 transition-all duration-800 delay-200 ease-out-expo ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
         >
           <p className="text-xl md:text-2xl text-white/80 leading-relaxed font-light">
-            你好，我是 <span className="text-white font-medium">Yu</span>，一名热爱技术与创意的开发者。
+            你好，我是 <span className="text-white font-medium">Zhi Yu</span>，一名热爱技术与创意的开发者。
           </p>
           <p className="text-lg md:text-xl text-white/60 leading-relaxed">
             专注于构建优雅、高性能的数字产品，将复杂的技术转化为简洁直观的用户体验。
