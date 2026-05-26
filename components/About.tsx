@@ -1,0 +1,66 @@
+'use client'
+
+import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
+
+export default function About() {
+  const { ref: sectionRef, isIntersecting } = useIntersectionObserver<HTMLElement>({ threshold: 0.2 })
+  const { ref: titleRef, isIntersecting: titleVisible } = useIntersectionObserver<HTMLHeadingElement>({ threshold: 0.5 })
+  const { ref: contentRef, isIntersecting: contentVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.3 })
+
+  return (
+    <section 
+      ref={sectionRef}
+      id="about" 
+      className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-950/50 to-black" />
+      
+      <div className="max-w-4xl relative z-10">
+        <div className="flex items-center gap-4 mb-12">
+          <h2 
+            ref={titleRef}
+            className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight transition-all duration-800 ease-out-expo ${titleVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}
+          >
+            <span className="text-gradient">About</span>
+          </h2>
+          <div className={`h-px bg-gradient-to-r from-white/30 to-transparent flex-1 transition-all duration-1000 delay-300 ease-out-expo ${titleVisible ? 'opacity-100 scale-x-100 origin-left' : 'opacity-0 scale-x-0'}`} />
+        </div>
+        
+        <div 
+          ref={contentRef}
+          className={`space-y-8 transition-all duration-800 delay-200 ease-out-expo ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
+        >
+          <p className="text-xl md:text-2xl text-white/80 leading-relaxed font-light">
+            你好，我是 <span className="text-white font-medium">Yu</span>，一名热爱技术与创意的开发者。
+          </p>
+          <p className="text-lg md:text-xl text-white/60 leading-relaxed">
+            专注于构建优雅、高性能的数字产品，将复杂的技术转化为简洁直观的用户体验。
+          </p>
+          <p className="text-lg md:text-xl text-white/60 leading-relaxed">
+            相信好的设计源于对细节的执着追求。
+          </p>
+          
+          <div className={`pt-8 flex gap-6 transition-all duration-800 delay-500 ease-out-expo ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className="group">
+              <div className="text-4xl font-bold text-white mb-1 transition-transform duration-300 group-hover:scale-110">5+</div>
+              <div className="text-sm text-white/40 uppercase tracking-wider">年经验</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div className="group">
+              <div className="text-4xl font-bold text-white mb-1 transition-transform duration-300 group-hover:scale-110">50+</div>
+              <div className="text-sm text-white/40 uppercase tracking-wider">项目完成</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div className="group">
+              <div className="text-4xl font-bold text-white mb-1 transition-transform duration-300 group-hover:scale-110">∞</div>
+              <div className="text-sm text-white/40 uppercase tracking-wider">学习热情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="absolute -right-32 top-1/2 -translate-y-1/2 w-64 h-64 border border-white/5 rounded-full" />
+      <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-48 h-48 border border-white/5 rounded-full" />
+    </section>
+  )
+}
