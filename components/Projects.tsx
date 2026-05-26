@@ -1,6 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
+
+const ProjectsParticles = dynamic(() => import('./ProjectsParticles'), { ssr: false })
 
 const projects = [
   {
@@ -81,8 +84,9 @@ export default function Projects() {
   const { ref: gridRef, isIntersecting: gridVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.1 })
 
   return (
-    <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative">
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-950/30 via-black to-black" />
+    <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
+      <ProjectsParticles className="absolute inset-0 opacity-60" />
+      <div className="absolute inset-0 bg-gradient-to-t from-gray-950/30 via-black/50 to-black/50" />
       
       <div className="max-w-6xl w-full relative z-10">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">

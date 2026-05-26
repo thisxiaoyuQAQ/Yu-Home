@@ -1,6 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
+
+const AboutParticles = dynamic(() => import('./AboutParticles'), { ssr: false })
 
 export default function About() {
   const { ref: sectionRef, isIntersecting } = useIntersectionObserver<HTMLElement>({ threshold: 0.2 })
@@ -13,7 +16,8 @@ export default function About() {
       id="about" 
       className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-950/50 to-black" />
+      <AboutParticles className="absolute inset-0 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-950/50 to-black pointer-events-none" />
       
       <div className="max-w-4xl relative z-10">
         <div className="flex items-center gap-4 mb-12">

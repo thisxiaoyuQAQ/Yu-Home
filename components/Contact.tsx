@@ -1,6 +1,9 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
+
+const ContactParticles = dynamic(() => import('./ContactParticles'), { ssr: false })
 
 const contacts = [
   { label: 'Email', value: 'hello@yu.dev', href: 'mailto:hello@yu.dev', icon: '✉' },
@@ -15,7 +18,8 @@ export default function Contact() {
 
   return (
     <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-gray-900/30 via-black to-black" />
+      <ContactParticles />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-gray-900/30 via-black to-black pointer-events-none" />
       
       <div className="max-w-4xl w-full text-center relative z-10">
         <div ref={titleRef}>

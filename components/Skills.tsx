@@ -2,6 +2,9 @@
 
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+
+const SkillsParticles = dynamic(() => import('./SkillsParticles'), { ssr: false })
 
 const skills = [
   { name: 'TypeScript', level: 90 },
@@ -56,9 +59,12 @@ export default function Skills() {
     <section 
       ref={sectionRef}
       id="skills" 
-      className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative"
+      className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-black to-black" />
+      <div className="absolute inset-0">
+        <SkillsParticles className="w-full h-full opacity-60" />
+      </div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-black/50 to-black" />
       
       <div className="max-w-4xl w-full relative z-10">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">
