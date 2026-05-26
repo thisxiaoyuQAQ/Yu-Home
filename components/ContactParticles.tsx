@@ -20,11 +20,12 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
   const mainStarsRef = useRef<THREE.Points>(null)
   const { viewport } = useThree()
 
-  const { positions, velocities, originalPositions, mainStarIndices } = useMemo(() => {
+  const { positions, velocities, originalPositions, mainStarIndices, particleSizes, geometry, mainGeometry, lineGeometry, linePositions, lineColors } = useMemo(() => {
     const pos = new Float32Array(PARTICLE_COUNT * 3)
     const vel = new Float32Array(PARTICLE_COUNT * 3)
     const origPos = new Float32Array(PARTICLE_COUNT * 3)
     const mainIndices = new Set<number>()
+    const sizes = new Float32Array(PARTICLE_COUNT)
 
     while (mainIndices.size < MAIN_STAR_COUNT) {
       mainIndices.add(Math.floor(Math.random() * PARTICLE_COUNT))
@@ -43,42 +44,71 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
       vel[i3] = (Math.random() - 0.5) * 0.002
       vel[i3 + 1] = (Math.random() - 0.5) * 0.002
       vel[i3 + 2] = (Math.random() - 0.5) * 0.001
+
+      sizes[i] = mainIndices.has(i) ? 4 : 1.5 + Math.random() * 1
     }
+
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
+
+    const mainPos = new Float32Array(MAIN_STAR_COUNT * 3)
+    const mainGeometry = new THREE.BufferGeometry()
+    mainGeometry.setAttribute('position', new THREE.BufferAttribute(mainPos, 3))
+
+    const linePosArray = new Float32Array(PARTICLE_COUNT * PARTICLE_COUNT * 6)
+    const lineColArray = new Float32Array(PARTICLE_COUNT * PARTICLE_COUNT * 6)
+    const lineGeometry = new THREE.BufferGeometry()
+    lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePosArray, 3))
+    lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineColArray, 3))
 
     return {
       positions: pos,
       velocities: vel,
       originalPositions: origPos,
       mainStarIndices: mainIndices,
+      particleSizes: sizes,
+      geometry,
+      mainGeometry,
+      lineGeometry,
+      linePositions: linePosArray,
+      lineColors: lineColArray,
     }
   }, [])
 
-  const mainStarPositions = useMemo(() => {
-    const pos = new Float32Array(MAIN_STAR_COUNT * 3)
-    return pos
-  }, [])
+  const pointsMaterial = useMemo(() => new THREE.PointsMaterial({
+    size: 2,
+    color: new THREE.Color('#fffaf0'),
+    transparent: true,
+    opacity: 0.6,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), [])
 
-  const linePositions = useMemo(() => {
-    return new Float32Array(PARTICLE_COUNT * PARTICLE_COUNT * 6)
-  }, [])
+  const mainStarMaterial = useMemo(() => new THREE.PointsMaterial({
+    size: 6,
+    color: new THREE.Color('#fff8e7'),
+    transparent: true,
+    opacity: 0.9,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), [])
 
-  const lineColors = useMemo(() => {
-    return new Float32Array(PARTICLE_COUNT * PARTICLE_COUNT * 6)
-  }, [])
-
-  const particleSizes = useMemo(() => {
-    const sizes = new Float32Array(PARTICLE_COUNT)
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      sizes[i] = mainStarIndices.has(i) ? 4 : 1.5 + Math.random() * 1
-    }
-    return sizes
-  }, [mainStarIndices])
+  const lineMaterial = useMemo(() => new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.15,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  }), [])
 
   useFrame((state) => {
     if (!pointsRef.current || !linesRef.current || !mainStarsRef.current) return
 
     const time = state.clock.elapsedTime
-    const positionAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute
+    const positionAttr = geometry.attributes.position as THREE.BufferAttribute
     const posArray = positionAttr.array as Float32Array
 
     const mouseX = (mouse.current.x * viewport.width) / 2
@@ -114,9 +144,8 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
     positionAttr.needsUpdate = true
 
     let lineIndex = 0
-    const lineGeo = linesRef.current.geometry
-    const linePosAttr = lineGeo.attributes.position as THREE.BufferAttribute
-    const lineColAttr = lineGeo.attributes.color as THREE.BufferAttribute
+    const linePosAttr = lineGeometry.attributes.position as THREE.BufferAttribute
+    const lineColAttr = lineGeometry.attributes.color as THREE.BufferAttribute
     const linePosArray = linePosAttr.array as Float32Array
     const lineColArray = lineColAttr.array as Float32Array
 
@@ -166,9 +195,9 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
 
     linePosAttr.needsUpdate = true
     lineColAttr.needsUpdate = true
-    lineGeo.setDrawRange(0, lineIndex * 2)
+    lineGeometry.setDrawRange(0, lineIndex * 2)
 
-    const mainPosAttr = mainStarsRef.current.geometry.attributes.position as THREE.BufferAttribute
+    const mainPosAttr = mainGeometry.attributes.position as THREE.BufferAttribute
     const mainPosArray = mainPosAttr.array as Float32Array
     let mi = 0
     mainStarIndices.forEach((idx) => {
@@ -179,81 +208,14 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
     })
     mainPosAttr.needsUpdate = true
 
-    const mainMaterial = mainStarsRef.current.material as THREE.PointsMaterial
-    mainMaterial.opacity = 0.7 + Math.sin(time * 1.5) * 0.3
+    mainStarMaterial.opacity = 0.7 + Math.sin(time * 1.5) * 0.3
   })
 
   return (
     <>
-      <points ref={pointsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={PARTICLE_COUNT}
-            array={positions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-size"
-            count={PARTICLE_COUNT}
-            array={particleSizes}
-            itemSize={1}
-          />
-        </bufferGeometry>
-        <pointsMaterial
-          size={2}
-          color="#fffaf0"
-          transparent
-          opacity={0.6}
-          sizeAttenuation
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
-
-      <lineSegments ref={linesRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={linePositions.length / 3}
-            array={linePositions}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-color"
-            count={lineColors.length / 3}
-            array={lineColors}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial
-          vertexColors
-          transparent
-          opacity={0.15}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </lineSegments>
-
-      <points ref={mainStarsRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={MAIN_STAR_COUNT}
-            array={mainStarPositions}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <pointsMaterial
-          size={6}
-          color="#fff8e7"
-          transparent
-          opacity={0.9}
-          sizeAttenuation
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
+      <points ref={pointsRef} geometry={geometry} material={pointsMaterial} />
+      <lineSegments ref={linesRef} geometry={lineGeometry} material={lineMaterial} />
+      <points ref={mainStarsRef} geometry={mainGeometry} material={mainStarMaterial} />
     </>
   )
 }
