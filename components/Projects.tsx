@@ -10,7 +10,7 @@ const projects = [
     title: 'Yu-Blog',
     description: '由astro驱动的个人博客',
     tags: ['React', 'TypeScript', 'Tailwind'],
-    image: '/projects/01.jpg',
+    image: '/projects/01.png',
     link: 'https://blog.zyuo.cn',
   },/*
   {
@@ -49,13 +49,20 @@ function ProjectCard({ project, index, isVisible }: { project: typeof projects[0
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       
-      <div className="aspect-video bg-gray-900 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent z-10" />
-        <div className="absolute inset-0 flex items-center justify-center">
+      <div className="aspect-video bg-gray-900 relative overflow-hidden flex items-center justify-center">
+        {project.image && (
+          <img 
+            src={project.image} 
+            alt={project.title}
+            className="max-w-full max-h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-500"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent z-10 pointer-events-none" />
+        {!project.image && (
           <span className="text-6xl font-bold text-white/5 group-hover:text-white/10 transition-colors duration-500">
             0{index + 1}
           </span>
-        </div>
+        )}
       </div>
       
       <div className="p-6 relative">
