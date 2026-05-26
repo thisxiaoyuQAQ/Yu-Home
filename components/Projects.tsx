@@ -11,24 +11,28 @@ const projects = [
     description: '由astro驱动的个人博客',
     tags: ['React', 'TypeScript', 'Tailwind'],
     image: '/projects/01.jpg',
+    link: 'https://blog.zyuo.cn',
   },/*
   {
     title: 'Project Two',
     description: '3D 可视化项目，探索 WebGL 技术的无限可能',
     tags: ['Three.js', 'WebGL', 'GLSL'],
     image: '/projects/02.jpg',
+    link: '#',
   },
   {
     title: 'Project Three',
     description: '全栈开发平台，打造端到端的解决方案',
     tags: ['Next.js', 'Node.js', 'PostgreSQL'],
     image: '/projects/03.jpg',
+    link: '#',
   },
   {
     title: 'Project Four',
     description: '移动端应用，提供流畅的跨平台体验',
     tags: ['React Native', 'TypeScript'],
     image: '/projects/04.jpg',
+    link: '#',
   },*/
 ]
 
@@ -36,8 +40,11 @@ function ProjectCard({ project, index, isVisible }: { project: typeof projects[0
   const delay = index * 150
 
   return (
-    <div 
-      className={`group relative bg-card border border-white/5 overflow-hidden transition-all duration-600 ease-out-expo hover:border-white/20 hover-lift hover-glow ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
+    <a 
+      href={project.link}
+      target={project.link !== '#' ? '_blank' : undefined}
+      rel={project.link !== '#' ? 'noopener noreferrer' : undefined}
+      className={`group relative bg-card border border-white/5 overflow-hidden transition-all duration-600 ease-out-expo hover:border-white/20 hover-lift hover-glow cursor-pointer block ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -75,7 +82,7 @@ function ProjectCard({ project, index, isVisible }: { project: typeof projects[0
           </svg>
         </div>
       </div>
-    </div>
+    </a>
   )
 }
 
@@ -111,7 +118,7 @@ export default function Projects() {
         
         <div className={`mt-12 text-center transition-all duration-800 delay-700 ease-out-expo ${gridVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
           <a 
-            href="https://github.com" 
+            href="https://github.com/thisxiaoyuQAQ" 
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-white/40 hover:text-white/80 transition-colors duration-300 group"
