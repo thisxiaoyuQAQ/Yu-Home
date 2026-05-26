@@ -4,12 +4,12 @@ import { useRef, useEffect, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const PARTICLE_COUNT = 1200
-const MOUSE_RADIUS = 120
-const MOUSE_STRENGTH = 8
-const CONNECTION_DISTANCE = 100
-const RETURN_SPEED = 0.02
-const DAMPING = 0.92
+const PARTICLE_COUNT = 2000
+const MOUSE_RADIUS = 180
+const MOUSE_STRENGTH = 1.5
+const CONNECTION_DISTANCE = 80
+const RETURN_SPEED = 0.008
+const DAMPING = 0.96
 
 const mouseState = { x: 0, y: 0, active: false }
 
@@ -21,12 +21,13 @@ function Particles() {
     const originalPositions = new Float32Array(PARTICLE_COUNT * 3)
     const velocities = new Float32Array(PARTICLE_COUNT * 3)
     
-    const spread = 800
+    const spreadX = 1600
+    const spreadY = 1200
     
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const x = (Math.random() - 0.5) * spread
-      const y = (Math.random() - 0.5) * spread
-      const z = (Math.random() - 0.5) * 100
+      const x = (Math.random() - 0.5) * spreadX
+      const y = (Math.random() - 0.5) * spreadY
+      const z = (Math.random() - 0.5) * 150
       
       positions[i * 3] = x
       positions[i * 3 + 1] = y
@@ -56,9 +57,9 @@ function Particles() {
 
   const pointsMaterial = useMemo(() => new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 3,
+    size: 2,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.6,
     sizeAttenuation: true,
     blending: THREE.AdditiveBlending,
   }), [])
@@ -66,7 +67,7 @@ function Particles() {
   const lineMaterial = useMemo(() => new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.3,
     blending: THREE.AdditiveBlending,
   }), [])
 
@@ -99,7 +100,7 @@ function Particles() {
         const dist = Math.sqrt(mdx * mdx + mdy * mdy)
         
         if (dist < MOUSE_RADIUS && dist > 0) {
-          const force = (1 - dist / MOUSE_RADIUS) * MOUSE_STRENGTH
+          const force = Math.pow(1 - dist / MOUSE_RADIUS, 2) * MOUSE_STRENGTH
           velocities[ix] += (mdx / dist) * force
           velocities[iy] += (mdy / dist) * force
         }
@@ -123,7 +124,7 @@ function Particles() {
         const distSq = dx * dx + dy * dy
         
         if (distSq < connDistSq) {
-          const alpha = (1 - Math.sqrt(distSq) / CONNECTION_DISTANCE) * 0.5
+          const alpha = (1 - Math.sqrt(distSq) / CONNECTION_DISTANCE) * 0.25
           
           const idx = lineCount * 6
           linePositions[idx] = positions[i * 3]
@@ -183,7 +184,7 @@ export default function ParticleCanvas({ className }: { className?: string }) {
   return (
     <div className={className} style={{ width: '100%', height: '100%' }}>
       <Canvas
-        camera={{ position: [0, 0, 400], fov: 75 }}
+        camera={{ position: [0, 0, 500], fov: 75 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
