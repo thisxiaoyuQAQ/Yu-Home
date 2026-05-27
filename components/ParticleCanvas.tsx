@@ -4,34 +4,46 @@ import { useRef, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const PARTICLE_COUNT = 2000
-const MOUSE_RADIUS = 180
-const MOUSE_STRENGTH = 1.5
-const CONNECTION_DISTANCE = 80
-const RETURN_SPEED = 0.008
-const DAMPING = 0.96
-const DRIFT_SPEED = 0.3
-const DRIFT_AMPLITUDE = 30
+const NEBULA_PARTICLES = 3000
+const STAR_PARTICLES = 200
+const MOUSE_RADIUS = 250
+const MOUSE_STRENGTH = 3
+const RETURN_SPEED = 0.004
+const DAMPING = 0.98
 
 const mouseState = { x: 0, y: 0, active: false }
 
-function Particles() {
+function NebulaParticles() {
   const { camera, size } = useThree()
   const timeRef = useRef(0)
+  const groupRef = useRef<THREE.Group>(null)
   
-  const data = useMemo(() => {
-    const positions = new Float32Array(PARTICLE_COUNT * 3)
-    const originalPositions = new Float32Array(PARTICLE_COUNT * 3)
-    const velocities = new Float32Array(PARTICLE_COUNT * 3)
-    const phases = new Float32Array(PARTICLE_COUNT * 2)
+  const nebulaData = useMemo(() => {
+    const positions = new Float32Array(NEBULA_PARTICLES * 3)
+    const originalPositions = new Float32Array(NEBULA_PARTICLES * 3)
+    const velocities = new Float32Array(NEBULA_PARTICLES * 3)
+    const colors = new Float32Array(NEBULA_PARTICLES * 3)
+    const sizes = new Float32Array(NEBULA_PARTICLES)
+    const phases = new Float32Array(NEBULA_PARTICLES * 3)
     
-    const spreadX = 1600
-    const spreadY = 1200
+    const colorPalette = [
+      [0.4, 0.2, 0.8],
+      [0.2, 0.4, 0.9],
+      [0.6, 0.3, 0.7],
+      [0.3, 0.5, 0.9],
+      [0.5, 0.2, 0.6],
+      [0.2, 0.3, 0.8],
+    ]
     
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const x = (Math.random() - 0.5) * spreadX
-      const y = (Math.random() - 0.5) * spreadY
-      const z = (Math.random() - 0.5) * 150
+    for (let i = 0; i < NEBULA_PARTICLES; i++) {
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      const r = Math.pow(Math.random(), 0.4) * 600
+      
+      const spiralOffset = theta + r * 0.008
+      const x = r * Math.sin(phi) * Math.cos(spiralOffset) * 1.5
+      const y = r * Math.sin(phi) * Math.sin(spiralOffset) * 0.8
+      const z = r * Math.cos(phi) * 0.6
       
       positions[i * 3] = x
       positions[i * 3 + 1] = y
@@ -45,44 +57,151 @@ function Particles() {
       velocities[i * 3 + 1] = 0
       velocities[i * 3 + 2] = 0
       
-      phases[i * 2] = Math.random() * Math.PI * 2
-      phases[i * 2 + 1] = 0.5 + Math.random() * 1.0
+      const colorIdx = Math.floor(Math.random() * colorPalette.length)
+      const color = colorPalette[colorIdx]
+      const variation = 0.8 + Math.random() * 0.4
+      colors[i * 3] = color[0] * variation
+      colors[i * 3 + 1] = color[1] * variation
+      colors[i * 3 + 2] = color[2] * variation
+      
+      const distFromCenter = Math.sqrt(x * x + y * y + z * z)
+      const normalizedDist = distFromCenter / 600
+      sizes[i] = (2 + Math.random() * 4) * (1 - normalizedDist * 0.5)
+      
+      phases[i * 3] = Math.random() * Math.PI * 2
+      phases[i * 3 + 1] = 0.2 + Math.random() * 0.6
+      phases[i * 3 + 2] = Math.random() * Math.PI * 2
     }
     
     const geometry = new THREE.BufferGeometry()
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
     
-    const linePositions = new Float32Array(50000 * 6)
-    const lineColors = new Float32Array(50000 * 6)
-    const lineGeometry = new THREE.BufferGeometry()
-    lineGeometry.setAttribute('position', new THREE.BufferAttribute(linePositions, 3))
-    lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3))
-    lineGeometry.setDrawRange(0, 0)
+    return { positions, originalPositions, velocities, colors, sizes, phases, geometry }
+  }, [])
+  
+  const starData = useMemo(() => {
+    const positions = new Float32Array(STAR_PARTICLES * 3)
+    const sizes = new Float32Array(STAR_PARTICLES)
+    const twinklePhases = new Float32Array(STAR_PARTICLES)
     
-    return { positions, originalPositions, velocities, phases, geometry, lineGeometry, linePositions, lineColors }
+    for (let i = 0; i < STAR_PARTICLES; i++) {
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(2 * Math.random() - 1)
+      const r = 200 + Math.random() * 500
+      
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta) * 1.5
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.8
+      positions[i * 3 + 2] = r * Math.cos(phi) * 0.6
+      
+      sizes[i] = 1 + Math.random() * 2
+      twinklePhases[i] = Math.random() * Math.PI * 2
+    }
+    
+    const geometry = new THREE.BufferGeometry()
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
+    geometry.setAttribute('twinklePhase', new THREE.BufferAttribute(twinklePhases, 1))
+    
+    return { positions, sizes, twinklePhases, geometry }
   }, [])
 
-  const pointsMaterial = useMemo(() => new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 2,
-    transparent: true,
-    opacity: 0.6,
-    sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
-  }), [])
+  const nebulaMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      },
+      vertexShader: `
+        attribute float size;
+        attribute vec3 color;
+        varying vec3 vColor;
+        varying float vAlpha;
+        uniform float uPixelRatio;
+        uniform float uTime;
 
-  const lineMaterial = useMemo(() => new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.3,
-    blending: THREE.AdditiveBlending,
-  }), [])
+        void main() {
+          vColor = color;
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          float dist = length(position);
+          vAlpha = 0.6 - dist * 0.0005;
+          float pulse = 1.0 + sin(uTime * 0.3 + position.x * 0.005 + position.y * 0.005) * 0.15;
+          gl_PointSize = size * uPixelRatio * (500.0 / -mvPosition.z) * pulse;
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vAlpha;
+
+        void main() {
+          vec2 center = gl_PointCoord - vec2(0.5);
+          float dist = length(center);
+          if (dist > 0.5) discard;
+          
+          float glow = exp(-dist * 2.5) * 0.9;
+          float soft = smoothstep(0.5, 0.0, dist) * 0.4;
+          float alpha = (glow + soft) * vAlpha;
+          
+          gl_FragColor = vec4(vColor, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  }, [])
+  
+  const starMaterial = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+      },
+      vertexShader: `
+        attribute float size;
+        attribute float twinklePhase;
+        varying float vTwinkle;
+        uniform float uPixelRatio;
+        uniform float uTime;
+
+        void main() {
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vTwinkle = 0.5 + 0.5 * sin(uTime * 2.0 + twinklePhase * 6.28);
+          gl_PointSize = size * uPixelRatio * (300.0 / -mvPosition.z) * (0.8 + vTwinkle * 0.4);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying float vTwinkle;
+
+        void main() {
+          vec2 center = gl_PointCoord - vec2(0.5);
+          float dist = length(center);
+          if (dist > 0.5) discard;
+          
+          float core = exp(-dist * 8.0);
+          float glow = exp(-dist * 3.0) * 0.5;
+          float alpha = (core + glow) * vTwinkle;
+          
+          gl_FragColor = vec4(1.0, 1.0, 1.0, alpha);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })
+  }, [])
 
   useFrame((_, delta) => {
     timeRef.current += delta
     const time = timeRef.current
     
-    const { positions, originalPositions, velocities, phases, geometry, lineGeometry, linePositions, lineColors } = data
+    nebulaMaterial.uniforms.uTime.value = time
+    starMaterial.uniforms.uTime.value = time
+    
+    const { positions, originalPositions, velocities, phases, geometry } = nebulaData
     
     const mouseWorldX = (mouseState.x / size.width) * 2 - 1
     const mouseWorldY = -(mouseState.y / size.height) * 2 + 1
@@ -93,23 +212,37 @@ function Particles() {
     const distance = -camera.position.z / dir.z
     const mousePos = camera.position.clone().add(dir.multiplyScalar(distance))
     
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < NEBULA_PARTICLES; i++) {
       const ix = i * 3
       const iy = i * 3 + 1
+      const iz = i * 3 + 2
       
-      const phase = phases[i * 2]
-      const speed = phases[i * 2 + 1]
-      const driftX = Math.sin(time * DRIFT_SPEED * speed + phase) * DRIFT_AMPLITUDE
-      const driftY = Math.cos(time * DRIFT_SPEED * speed * 0.7 + phase * 1.3) * DRIFT_AMPLITUDE * 0.6
+      const phase = phases[ix]
+      const speed = phases[iy]
+      const phaseZ = phases[iz]
       
-      const targetX = originalPositions[ix] + driftX
-      const targetY = originalPositions[iy] + driftY
+      const orbitSpeed = 0.02 * speed
+      const wobbleX = Math.sin(time * 0.1 * speed + phase) * 30
+      const wobbleY = Math.cos(time * 0.08 * speed + phase * 1.3) * 25
+      const wobbleZ = Math.sin(time * 0.06 + phaseZ) * 15
       
-      const dx = targetX - positions[ix]
-      const dy = targetY - positions[iy]
+      const baseX = originalPositions[ix]
+      const baseY = originalPositions[iy]
+      const baseZ = originalPositions[iz]
       
-      velocities[ix] += dx * RETURN_SPEED
-      velocities[iy] += dy * RETURN_SPEED
+      const rotAngle = time * orbitSpeed
+      const cos = Math.cos(rotAngle)
+      const sin = Math.sin(rotAngle)
+      const rotatedX = baseX * cos - baseZ * sin
+      const rotatedZ = baseX * sin + baseZ * cos
+      
+      const targetX = rotatedX + wobbleX
+      const targetY = baseY + wobbleY
+      const targetZ = rotatedZ + wobbleZ
+      
+      velocities[ix] += (targetX - positions[ix]) * RETURN_SPEED
+      velocities[iy] += (targetY - positions[iy]) * RETURN_SPEED
+      velocities[iz] += (targetZ - positions[iz]) * RETURN_SPEED
       
       if (mouseState.active) {
         const mdx = positions[ix] - mousePos.x
@@ -125,55 +258,26 @@ function Particles() {
       
       velocities[ix] *= DAMPING
       velocities[iy] *= DAMPING
+      velocities[iz] *= DAMPING
       
       positions[ix] += velocities[ix]
       positions[iy] += velocities[iy]
-    }
-    
-    let lineCount = 0
-    const maxLines = 50000
-    const connDistSq = CONNECTION_DISTANCE * CONNECTION_DISTANCE
-    
-    for (let i = 0; i < PARTICLE_COUNT && lineCount < maxLines; i++) {
-      for (let j = i + 1; j < PARTICLE_COUNT && lineCount < maxLines; j++) {
-        const dx = positions[i * 3] - positions[j * 3]
-        const dy = positions[i * 3 + 1] - positions[j * 3 + 1]
-        const distSq = dx * dx + dy * dy
-        
-        if (distSq < connDistSq) {
-          const alpha = (1 - Math.sqrt(distSq) / CONNECTION_DISTANCE) * 0.25
-          
-          const idx = lineCount * 6
-          linePositions[idx] = positions[i * 3]
-          linePositions[idx + 1] = positions[i * 3 + 1]
-          linePositions[idx + 2] = positions[i * 3 + 2]
-          linePositions[idx + 3] = positions[j * 3]
-          linePositions[idx + 4] = positions[j * 3 + 1]
-          linePositions[idx + 5] = positions[j * 3 + 2]
-          
-          lineColors[idx] = alpha
-          lineColors[idx + 1] = alpha
-          lineColors[idx + 2] = alpha
-          lineColors[idx + 3] = alpha
-          lineColors[idx + 4] = alpha
-          lineColors[idx + 5] = alpha
-          
-          lineCount++
-        }
-      }
+      positions[iz] += velocities[iz]
     }
     
     geometry.attributes.position.needsUpdate = true
-    lineGeometry.attributes.position.needsUpdate = true
-    lineGeometry.attributes.color.needsUpdate = true
-    lineGeometry.setDrawRange(0, lineCount * 2)
+    
+    if (groupRef.current) {
+      groupRef.current.rotation.y = time * 0.01
+      groupRef.current.rotation.x = Math.sin(time * 0.05) * 0.05
+    }
   })
 
   return (
-    <>
-      <points geometry={data.geometry} material={pointsMaterial} />
-      <lineSegments geometry={data.lineGeometry} material={lineMaterial} />
-    </>
+    <group ref={groupRef}>
+      <points geometry={nebulaData.geometry} material={nebulaMaterial} />
+      <points geometry={starData.geometry} material={starMaterial} />
+    </group>
   )
 }
 
@@ -205,7 +309,7 @@ export default function ParticleCanvas({ className }: { className?: string }) {
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
-        <Particles />
+        <NebulaParticles />
       </Canvas>
     </div>
   )
