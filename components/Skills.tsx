@@ -7,12 +7,12 @@ import dynamic from 'next/dynamic'
 const SkillsParticles = dynamic(() => import('./SkillsParticles'), { ssr: false })
 
 const skills = [
-  { name: 'TypeScript', level: 90 },
-  { name: 'React / Next.js', level: 85 },
-  { name: 'Node.js', level: 80 },
-  { name: 'Three.js', level: 75 },
-  { name: 'Tailwind CSS', level: 90 },
-  { name: 'Python', level: 70 },
+  { name: 'Java', level: 90 },
+  { name: 'Python', level: 85 },
+  { name: 'C++', level: 60 },
+  { name: 'TypeScript', level: 50 },
+  { name: 'JavaScript', level: 45 },
+  { name: 'React', level: 35 },
 ]
 
 function SkillBar({ skill, index, isVisible }: { skill: typeof skills[0]; index: number; isVisible: boolean }) {

@@ -10,82 +10,83 @@ const projects = [
     title: 'Yu-Blog',
     description: '由astro驱动的个人博客',
     tags: ['React', 'TypeScript', 'Tailwind'],
-    image: '/projects/01.png',
     link: 'https://blog.zyuo.cn',
-  },/*
-  {
-    title: 'Project Two',
-    description: '3D 可视化项目，探索 WebGL 技术的无限可能',
-    tags: ['Three.js', 'WebGL', 'GLSL'],
-    image: '/projects/02.jpg',
-    link: '#',
   },
   {
-    title: 'Project Three',
-    description: '全栈开发平台，打造端到端的解决方案',
-    tags: ['Next.js', 'Node.js', 'PostgreSQL'],
-    image: '/projects/03.jpg',
-    link: '#',
+    title: 'FreeWord',
+    description: '一个多语种背单词的平台',
+    tags: ['React', 'TypeScript', 'Tailwind'],
+    link: 'https://github.com/thisxiaoyuQAQ/FreeWord',
   },
   {
-    title: 'Project Four',
-    description: '移动端应用，提供流畅的跨平台体验',
-    tags: ['React Native', 'TypeScript'],
-    image: '/projects/04.jpg',
-    link: '#',
-  },*/
+    title: 'PapiWebApi',
+    description: 'Minecraft服务器插件，用于将 PlaceholderAPI 变量暴露为 Web API 接口',
+    tags: ['Java', 'Bukkit'],
+    link: 'https://github.com/thisxiaoyuQAQ/PapiWebApi',
+  },
+  {
+    title: 'Chinesename',
+    description: '初中时写的一个Minecraft中文名插件',
+    tags: ['Java', 'Bukkit'],
+    link: 'https://github.com/thisxiaoyuQAQ/chinesename',
+  },
+  {
+    title: 'MyNav',
+    description: '一个现代化、优雅且功能强大的个人浏览器导航页面',
+    tags: ['React', 'TypeScript', 'Tailwind'],
+    link: 'https://github.com/thisxiaoyuQAQ/MyNav',
+  },
+    {
+    title: 'Sentry',
+    description: '电脑监控系统，可以记录键盘操作、屏幕截图、屏幕录制和摄像头录制',
+    tags: ['React', 'TypeScript', 'Tailwind'],
+    link: 'https://github.com/thisxiaoyuQAQ/Sentry/settings',
+  },  
 ]
 
-function ProjectCard({ project, index, isVisible }: { project: typeof projects[0]; index: number; isVisible: boolean }) {
-  const delay = index * 150
+function ProjectItem({ project, index, isVisible }: { project: typeof projects[0]; index: number; isVisible: boolean }) {
+  const delay = index * 100
 
   return (
     <a 
       href={project.link}
       target={project.link !== '#' ? '_blank' : undefined}
       rel={project.link !== '#' ? 'noopener noreferrer' : undefined}
-      className={`group relative bg-card border border-white/5 overflow-hidden transition-all duration-600 ease-out-expo hover:border-white/20 hover-lift hover-glow cursor-pointer block ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
+      className={`group relative border-b border-white/10 py-6 transition-all duration-500 ease-out-expo hover:bg-white/[0.02] hover:pl-4 cursor-pointer block ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
-      <div className="aspect-video bg-gray-900 relative overflow-hidden flex items-center justify-center">
-        {project.image && (
-          <img 
-            src={project.image} 
-            alt={project.title}
-            className="max-w-full max-h-full object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-500"
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent z-10 pointer-events-none" />
-        {!project.image && (
-          <span className="text-6xl font-bold text-white/5 group-hover:text-white/10 transition-colors duration-500">
-            0{index + 1}
+      <div className="flex items-start justify-between gap-6">
+        <div className="flex items-start gap-6 flex-1">
+          <span className="text-white/20 text-sm font-mono mt-1 group-hover:text-white/40 transition-colors duration-300">
+            {String(index + 1).padStart(2, '0')}
           </span>
-        )}
-      </div>
-      
-      <div className="p-6 relative">
-        <h3 className="text-xl font-semibold mb-3 text-white/90 group-hover:text-white transition-colors duration-300">
-          {project.title}
-        </h3>
-        <p className="text-white/50 text-sm leading-relaxed mb-5 group-hover:text-white/60 transition-colors duration-300">
-          {project.description}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {project.tags.map((tag) => (
-            <span 
-              key={tag}
-              className="text-xs px-3 py-1.5 bg-white/5 text-white/50 rounded-full group-hover:bg-white/10 group-hover:text-white/70 transition-all duration-300"
-            >
-              {tag}
-            </span>
-          ))}
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-4 mb-2">
+              <h3 className="text-xl md:text-2xl font-semibold text-white/90 group-hover:text-white transition-colors duration-300">
+                {project.title}
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {project.tags.map((tag) => (
+                  <span 
+                    key={tag}
+                    className="text-xs px-2 py-1 bg-white/5 text-white/40 rounded group-hover:bg-white/10 group-hover:text-white/60 transition-all duration-300"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <p className="text-white/40 text-sm leading-relaxed group-hover:text-white/60 transition-colors duration-300">
+              {project.description}
+            </p>
+          </div>
         </div>
         
-        <div className="absolute right-6 top-6 w-8 h-8 flex items-center justify-center rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:border-white/30">
-          <svg className="w-4 h-4 text-white/60 -rotate-45 group-hover:rotate-0 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+          <span className="text-white/40 text-sm hidden md:block">View Project</span>
+          <svg className="w-5 h-5 text-white/40 group-hover:text-white/80 group-hover:translate-x-1 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
           </svg>
         </div>
       </div>
@@ -112,9 +113,9 @@ export default function Projects() {
           <div className={`h-px bg-gradient-to-r from-white/30 to-transparent flex-1 transition-all duration-1000 delay-300 ease-out-expo ${titleVisible ? 'opacity-100 scale-x-100 origin-left' : 'opacity-0 scale-x-0'}`} />
         </div>
         
-        <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div ref={gridRef} className="flex flex-col">
           {projects.map((project, index) => (
-            <ProjectCard 
+            <ProjectItem 
               key={project.title} 
               project={project} 
               index={index} 

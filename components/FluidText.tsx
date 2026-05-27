@@ -56,20 +56,20 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
           </filter>
 
           <linearGradient id="hue-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#a855f7">
-              <animate attributeName="stop-color" values="#a855f7;#6366f1;#0ea5e9;#a855f7" dur="6s" repeatCount="indefinite" />
+            <stop offset="0%" stopColor="#ffffff">
+              <animate attributeName="stop-color" values="#ffffff;#e0e0e0;#808080;#ffffff" dur="6s" repeatCount="indefinite" />
             </stop>
-            <stop offset="25%" stopColor="#6366f1">
-              <animate attributeName="stop-color" values="#6366f1;#0ea5e9;#10b981;#6366f1" dur="6s" repeatCount="indefinite" />
+            <stop offset="25%" stopColor="#e0e0e0">
+              <animate attributeName="stop-color" values="#e0e0e0;#808080;#404040;#e0e0e0" dur="6s" repeatCount="indefinite" />
             </stop>
-            <stop offset="50%" stopColor="#0ea5e9">
-              <animate attributeName="stop-color" values="#0ea5e9;#10b981;#eab308;#0ea5e9" dur="6s" repeatCount="indefinite" />
+            <stop offset="50%" stopColor="#808080">
+              <animate attributeName="stop-color" values="#808080;#404040;#e0e0e0;#808080" dur="6s" repeatCount="indefinite" />
             </stop>
-            <stop offset="75%" stopColor="#10b981">
-              <animate attributeName="stop-color" values="#10b981;#eab308;#ec4899;#10b981" dur="6s" repeatCount="indefinite" />
+            <stop offset="75%" stopColor="#404040">
+              <animate attributeName="stop-color" values="#404040;#e0e0e0;#ffffff;#404040" dur="6s" repeatCount="indefinite" />
             </stop>
-            <stop offset="100%" stopColor="#ec4899">
-              <animate attributeName="stop-color" values="#ec4899;#a855f7;#6366f1;#ec4899" dur="6s" repeatCount="indefinite" />
+            <stop offset="100%" stopColor="#ffffff">
+              <animate attributeName="stop-color" values="#ffffff;#808080;#e0e0e0;#ffffff" dur="6s" repeatCount="indefinite" />
             </stop>
           </linearGradient>
         </defs>
@@ -83,10 +83,10 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         }}
       >
         <h1
-          className="fluid-main text-7xl md:text-8xl lg:text-9xl font-black tracking-wide select-none italic"
+          className="fluid-main text-[9rem] md:text-[12rem] lg:text-[16rem] font-black tracking-[0.15em] select-none italic"
           style={{
             filter: 'url(#fluid-filter)',
-            background: 'linear-gradient(90deg, #a855f7, #6366f1, #0ea5e9, #10b981, #eab308, #ec4899, #a855f7)',
+            background: 'linear-gradient(90deg, #ffffff, #e0e0e0, #808080, #404040, #808080, #e0e0e0, #ffffff)',
             backgroundSize: '300% 100%',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
@@ -100,7 +100,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         </h1>
 
         <h1
-          className="absolute inset-0 text-7xl md:text-8xl lg:text-9xl font-black tracking-wide select-none italic"
+          className="absolute inset-0 text-[9rem] md:text-[12rem] lg:text-[16rem] font-black tracking-[0.15em] select-none italic"
           style={{
             background: 'linear-gradient(90deg, #a855f7, #6366f1, #0ea5e9, #10b981, #ec4899)',
             backgroundSize: '300% 100%',
@@ -116,9 +116,9 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         </h1>
 
         <h1
-          className="absolute inset-0 text-7xl md:text-8xl lg:text-9xl font-black tracking-wide select-none italic"
+          className="absolute inset-0 text-[9rem] md:text-[12rem] lg:text-[16rem] font-black tracking-[0.15em] select-none italic"
           style={{
-            background: 'linear-gradient(90deg, #ec4899, #a855f7, #6366f1, #0ea5e9, #10b981)',
+            background: 'linear-gradient(90deg, #404040, #808080, #c0c0c0, #ffffff, #e0e0e0)',
             backgroundSize: '300% 100%',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
