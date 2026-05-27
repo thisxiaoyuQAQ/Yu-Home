@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import FluidText from './FluidText'
 
 const ParticleCanvas = dynamic(() => import('./ParticleCanvas'), {
   ssr: false,
@@ -25,9 +26,7 @@ export default function Hero() {
       
       <div className="relative z-10 text-center px-6 pointer-events-none">
         <div className={`transition-all duration-1000 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <h1 className="text-7xl md:text-display-xl lg:text-display-2xl font-bold tracking-tighter text-gradient">
-            Zhi Yu
-          </h1>
+          <FluidText text="Zhi Yu" className="pointer-events-auto" />
         </div>
         
         <div className={`transition-all duration-1000 delay-200 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
@@ -36,21 +35,7 @@ export default function Hero() {
           </p>
         </div>
         
-        <div className={`mt-12 flex gap-4 justify-center transition-all duration-1000 delay-500 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <a 
-            href="#about" 
-            className="pointer-events-auto group relative px-8 py-3 border border-white/20 text-white/80 text-sm tracking-wider uppercase overflow-hidden transition-all duration-400 hover:border-white/40 hover:text-white"
-          >
-            <span className="relative z-10">探索更多</span>
-            <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform duration-400 ease-out-expo" />
-          </a>
-          <a 
-            href="#contact" 
-            className="pointer-events-auto group relative px-8 py-3 bg-white text-black text-sm tracking-wider uppercase overflow-hidden transition-all duration-400 hover:bg-white/90"
-          >
-            <span className="relative z-10">联系我</span>
-          </a>
-        </div>
+
       </div>
       
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 pointer-events-none">

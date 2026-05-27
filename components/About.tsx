@@ -41,7 +41,10 @@ export default function About() {
             专注于构建优雅、高性能的数字产品，将复杂的技术转化为简洁直观的用户体验。
           </p>
           <p className="text-lg md:text-xl text-white/60 leading-relaxed">
-            相信好的设计源于对细节的执着追求。
+            启蒙于Minecraft, 开发过10+趣味性插件, 整合包。
+          </p>
+          <p className="text-lg md:text-xl text-white/60 leading-relaxed">
+            兴趣使然, 自学软件开发, 网络安全。
           </p>
           
           <div className={`pt-8 flex gap-6 transition-all duration-800 delay-500 ease-out-expo ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
@@ -51,7 +54,7 @@ export default function About() {
             </div>
             <div className="w-px bg-white/10" />
             <div className="group">
-              <div className="text-4xl font-bold text-white mb-1 transition-transform duration-300 group-hover:scale-110">50+</div>
+              <div className="text-4xl font-bold text-white mb-1 transition-transform duration-300 group-hover:scale-110">10+</div>
               <div className="text-sm text-white/40 uppercase tracking-wider">项目完成</div>
             </div>
             <div className="w-px bg-white/10" />
