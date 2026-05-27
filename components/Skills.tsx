@@ -55,12 +55,34 @@ export default function Skills() {
   const { ref: sectionRef, isIntersecting } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 })
   const { ref: titleRef, isIntersecting: titleVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.5 })
   const { ref: skillsRef, isIntersecting: skillsVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.2 })
+  const containerRef = useRef<HTMLElement>(null)
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    skillsMouseState.x = e.clientX - rect.left
+    skillsMouseState.y = e.clientY - rect.top
+  }
+
+  const handleMouseEnter = () => {
+    skillsMouseState.active = true
+  }
+
+  const handleMouseLeave = () => {
+    skillsMouseState.active = false
+  }
 
   return (
     <section 
-      ref={sectionRef}
+      ref={(el) => {
+        (sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
+        containerRef.current = el
+      }}
       id="skills" 
       className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <SkillsParticles className="absolute inset-0 w-full h-full opacity-70 z-0" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-transparent to-black/30 pointer-events-none z-[1]" />

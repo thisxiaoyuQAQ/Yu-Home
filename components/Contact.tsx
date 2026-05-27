@@ -6,7 +6,7 @@ import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 const ContactParticles = dynamic(() => import('./ContactParticles'), { ssr: false })
 
 const contacts = [
-  { label: 'Email', value: 'minecraftxy@163.com', href: 'mailto:minecraftxy@163.com', icon: '✉' },
+  { label: 'Email', value: 'starleapxy@gmail.com', href: 'mailto:starleapxy@gmail.com', icon: '✉' },
   { label: 'GitHub', value: 'thisxiaoyuQAQ', href: 'https://github.com/thisxiaoyuQAQ', icon: '⌘' },
   { label: 'WeChat', value: 'starleap_xiaoyu', href: '#', icon: '💬' },
 ]
@@ -26,13 +26,13 @@ export default function Contact() {
           <h2 
             className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6 transition-all duration-800 ease-out-expo ${titleVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}
           >
-            <span className="text-gradient">Let's Connect</span>
+            <span className="text-gradient">Contact Me</span>
           </h2>
         </div>
         
         <div ref={contentRef}>
           <p className={`text-white/50 text-lg md:text-xl mb-16 max-w-xl mx-auto leading-relaxed transition-all duration-800 delay-200 ease-out-expo ${contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            有想法想要交流？无论是合作项目还是简单聊聊，都欢迎随时联系。
+            想和我聊聊? 欢迎随时联系。
           </p>
         </div>
         

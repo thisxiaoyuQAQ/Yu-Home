@@ -4,9 +4,9 @@ import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const PARTICLE_COUNT = 600
-const SPIRAL_LAYERS = 5
-const CONNECTION_DISTANCE = 60
+const PARTICLE_COUNT = 1000
+const SPIRAL_LAYERS = 6
+const CONNECTION_DISTANCE = 70
 
 const mouseState = { x: 0, y: 0, active: false }
 
@@ -24,10 +24,10 @@ function SpiralParticles() {
     const particlesPerLayer = Math.floor(PARTICLE_COUNT / SPIRAL_LAYERS)
 
     for (let layer = 0; layer < SPIRAL_LAYERS; layer++) {
-      const layerRadius = 80 + layer * 60
+      const layerRadius = 120 + layer * 80
       const direction = layer % 2 === 0 ? 1 : -1
-      const baseSpeed = 0.15 + Math.random() * 0.1
-      const spiralTurns = 2 + layer * 0.5
+      const baseSpeed = 0.12 + Math.random() * 0.08
+      const spiralTurns = 2.5 + layer * 0.6
 
       for (let i = 0; i < particlesPerLayer; i++) {
         const idx = layer * particlesPerLayer + i
@@ -35,12 +35,12 @@ function SpiralParticles() {
 
         const t = i / particlesPerLayer
         const angle = t * Math.PI * 2 * spiralTurns
-        const heightOffset = (t - 0.5) * 200
-        const radiusVariation = layerRadius + Math.sin(angle * 3) * 15
+        const heightOffset = (t - 0.5) * 300
+        const radiusVariation = layerRadius + Math.sin(angle * 3) * 25
 
         const x = Math.cos(angle) * radiusVariation
-        const y = heightOffset + Math.sin(angle * 2) * 30
-        const z = Math.sin(angle) * radiusVariation * 0.6
+        const y = heightOffset + Math.sin(angle * 2) * 40
+        const z = Math.sin(angle) * radiusVariation * 0.5
 
         positions[idx * 3] = x
         positions[idx * 3 + 1] = y
@@ -113,8 +113,8 @@ function SpiralParticles() {
       if (!pd) continue
 
       const newAngle = pd.angle + time * pd.speed * pd.direction
-      const layerRadius = 80 + pd.layer * 60
-      const radiusVariation = layerRadius + Math.sin(newAngle * 3) * 15
+      const layerRadius = 120 + pd.layer * 80
+      const radiusVariation = layerRadius + Math.sin(newAngle * 3) * 25
 
       const baseX = Math.cos(newAngle) * radiusVariation
       const baseY = basePositions[i * 3 + 1] + Math.sin(time * 0.5 + pd.layer) * 10
@@ -241,7 +241,7 @@ export default function ProjectsParticles({ className }: { className?: string })
       onMouseLeave={handleMouseLeave}
     >
       <Canvas
-        camera={{ position: [0, 0, 400], fov: 60 }}
+        camera={{ position: [0, 0, 500], fov: 75 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
