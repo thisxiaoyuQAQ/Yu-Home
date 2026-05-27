@@ -14,7 +14,7 @@ const DAMPING = 0.96
 const mouseState = { x: 0, y: 0, active: false }
 
 function Particles() {
-  const { viewport, camera } = useThree()
+  const { viewport, camera, size } = useThree()
   
   const data = useMemo(() => {
     const positions = new Float32Array(PARTICLE_COUNT * 3)
@@ -74,8 +74,8 @@ function Particles() {
   useFrame(() => {
     const { positions, originalPositions, velocities, geometry, lineGeometry, linePositions, lineColors } = data
     
-    const mouseWorldX = (mouseState.x / window.innerWidth) * 2 - 1
-    const mouseWorldY = -(mouseState.y / window.innerHeight) * 2 + 1
+    const mouseWorldX = (mouseState.x / size.width) * 2 - 1
+    const mouseWorldY = -(mouseState.y / size.height) * 2 + 1
     
     const vector = new THREE.Vector3(mouseWorldX, mouseWorldY, 0.5)
     vector.unproject(camera)
@@ -162,8 +162,9 @@ function Particles() {
 
 export default function ParticleCanvas({ className }: { className?: string }) {
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    mouseState.x = e.clientX
-    mouseState.y = e.clientY
+    const rect = e.currentTarget.getBoundingClientRect()
+    mouseState.x = e.clientX - rect.left
+    mouseState.y = e.clientY - rect.top
   }
 
   const handleMouseEnter = () => {
