@@ -137,20 +137,27 @@ function Scene() {
 }
 
 export default function AboutParticles({ className }: { className?: string }) {
-  if (typeof window !== 'undefined') {
-    window.addEventListener('mousemove', (e: MouseEvent) => {
-      mouseState.x = e.clientX
-      mouseState.y = e.clientY
-      mouseState.active = true
-    })
-    
-    document.body.addEventListener('mouseleave', () => {
-      mouseState.active = false
-    })
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    mouseState.x = e.clientX
+    mouseState.y = e.clientY
+  }
+
+  const handleMouseEnter = () => {
+    mouseState.active = true
+  }
+
+  const handleMouseLeave = () => {
+    mouseState.active = false
   }
 
   return (
-    <div className={className} style={{ width: '100%', height: '100%' }}>
+    <div 
+      className={className} 
+      style={{ width: '100%', height: '100%' }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <Canvas
         camera={{ position: [0, 0, 400], fov: 75 }}
         gl={{ antialias: true, alpha: true }}

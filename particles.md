@@ -122,19 +122,20 @@ positions[ix] += velocities[ix] + Math.sin(time * 0.5 + phases[i]) * 0.15
 ### 核心参数
 
 ```typescript
-const PARTICLE_COUNT = 800       // 粒子总数
-const COLUMNS = 40               // 列数
-const ROWS = 20                  // 行数
-const MOUSE_RADIUS = 150         // 鼠标波纹触发半径
-const RIPPLE_SPEED = 3           // 波纹扩散速度
-const RIPPLE_DECAY = 0.95        // 波纹衰减速度（越接近1衰减越慢）
+const PARTICLE_COUNT = 4000      // 粒子总数
+const COLUMNS = 50               // 列数
+const ROWS = 25                  // 行数
+const MOUSE_RADIUS = 120         // 鼠标推动半径
+const MOUSE_STRENGTH = 25        // 鼠标推力强度（增加=推得更远）
+const RETURN_SPEED = 0.03        // 粒子回归速度（增加=回归更快）
+const DAMPING = 0.92             // 速度衰减系数（接近1=更平滑惯性）
 ```
 
 ### 网格布局
 
 ```typescript
-const spreadX = 800              // 网格宽度
-const spreadY = 600              // 网格高度
+const spreadX = 900              // 网格宽度
+const spreadY = 700              // 网格高度
 const spacingX = spreadX / COLUMNS  // 列间距
 const spacingY = spreadY / ROWS     // 行间距
 ```
@@ -143,27 +144,50 @@ const spacingY = spreadY / ROWS     // 行间距
 
 ```typescript
 // 每列不同速度
-columnSpeeds[col] = 0.5 + Math.random() * 1.5  // 0.5-2x 速度
+columnSpeeds[col] = 0.3 + Math.random() * 1.2  // 0.3-1.5x 速度
 
 // 流动动画
-newY = baseY - ((time * speed * 30 + offset) % spreadY)
-// speed * 30 中的 30 控制整体流动速度
+flowY = basePositions[i * 3 + 1] - ((time * speed * 40 + yOffset) % spreadY)
+// speed * 40 中的 40 控制整体流动速度
+```
+
+### 鼠标推动效果
+
+```typescript
+// 距离检测与推力计算
+if (dist < MOUSE_RADIUS && dist > 0) {
+  const force = (1 - dist / MOUSE_RADIUS) * MOUSE_STRENGTH
+  const angle = Math.atan2(dy, dx)
+  velocities[i * 3] += Math.cos(angle) * force
+  velocities[i * 3 + 1] += Math.sin(angle) * force
+}
+
+// 速度衰减（产生惯性效果）
+velocities[i * 3] *= DAMPING
+velocities[i * 3 + 1] *= DAMPING
+
+// 回归原位
+velocities[i * 3] += (targetX - currentX) * RETURN_SPEED
+velocities[i * 3 + 1] += (targetY - currentY) * RETURN_SPEED
 ```
 
 ### 亮度渐变
 
 ```typescript
 // 顶部亮，底部暗
-const normalizedY = (newY + spreadY / 2) / spreadY
-const baseAlpha = 0.15 + normalizedY * 0.7  // 亮度范围 0.15-0.85
+const normalizedY = (positions[i * 3 + 1] + spreadY / 2) / spreadY
+const baseAlpha = 0.4 + normalizedY * 0.5  // 亮度范围 0.4-0.9
+
+// 运动增强亮度
+const velMag = Math.sqrt(velocities[i * 3] ** 2 + velocities[i * 3 + 1] ** 2)
+const motionBoost = Math.min(velMag * 0.1, 0.5)  // 最大增强 0.5
+const finalAlpha = Math.min(1, baseAlpha + motionBoost)
 ```
 
-### 波纹效果
+### 粒子大小
 
 ```typescript
-const rippleWidth = 30           // 波纹宽度
-rippleEffect = Math.max(rippleEffect, rippleFactor * ripple.strength)
-const finalAlpha = Math.min(1, baseAlpha + rippleEffect * 0.8)  // 波纹增强亮度
+sizes[index] = 3 + Math.random() * 3  // 3-6 范围
 ```
 
 ---
@@ -327,6 +351,6 @@ camera={{ position: [0, 0, 400], fov: 75 }}
 |------|------|--------|----------|
 | Hero | ParticleCanvas.tsx | 2000 | 网络连线 + 鼠标排斥 |
 | About | AboutParticles.tsx | 500 | 气泡上升 + 呼吸效果 |
-| Skills | SkillsParticles.tsx | 800 | 数据流 + 波纹扩散 |
+| Skills | SkillsParticles.tsx | 4000 | 数据流 + 鼠标推动 |
 | Projects | ProjectsParticles.tsx | 600 | 螺旋旋转 + 连线 |
 | Contact | ContactParticles.tsx | 400 | 星空 + 动态连线 |

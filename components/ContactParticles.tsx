@@ -12,9 +12,10 @@ const MOUSE_ATTRACTION_STRENGTH = 0.02
 
 interface ParticleSystemProps {
   mouse: React.MutableRefObject<THREE.Vector2>
+  active: React.MutableRefObject<boolean>
 }
 
-function ParticleSystem({ mouse }: ParticleSystemProps) {
+function ParticleSystem({ mouse, active }: ParticleSystemProps) {
   const pointsRef = useRef<THREE.Points>(null)
   const linesRef = useRef<THREE.LineSegments>(null)
   const mainStarsRef = useRef<THREE.Points>(null)
@@ -121,14 +122,16 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
       posArray[i3 + 1] += velocities[i3 + 1]
       posArray[i3 + 2] += velocities[i3 + 2]
 
-      const dx = mouseX - posArray[i3]
-      const dy = mouseY - posArray[i3 + 1]
-      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (active.current) {
+        const dx = mouseX - posArray[i3]
+        const dy = mouseY - posArray[i3 + 1]
+        const dist = Math.sqrt(dx * dx + dy * dy)
 
-      if (dist < MOUSE_INFLUENCE_RADIUS && dist > 0.1) {
-        const force = (MOUSE_INFLUENCE_RADIUS - dist) / MOUSE_INFLUENCE_RADIUS
-        posArray[i3] += dx * force * MOUSE_ATTRACTION_STRENGTH
-        posArray[i3 + 1] += dy * force * MOUSE_ATTRACTION_STRENGTH
+        if (dist < MOUSE_INFLUENCE_RADIUS && dist > 0.1) {
+          const force = (MOUSE_INFLUENCE_RADIUS - dist) / MOUSE_INFLUENCE_RADIUS
+          posArray[i3] += dx * force * MOUSE_ATTRACTION_STRENGTH
+          posArray[i3 + 1] += dy * force * MOUSE_ATTRACTION_STRENGTH
+        }
       }
 
       const returnStrength = 0.001
@@ -220,35 +223,51 @@ function ParticleSystem({ mouse }: ParticleSystemProps) {
   )
 }
 
-function Scene() {
-  const mouse = useRef(new THREE.Vector2(0, 0))
+interface SceneProps {
+  mouse: React.MutableRefObject<THREE.Vector2>
+  active: React.MutableRefObject<boolean>
+}
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      mouse.current.x = (e.clientX / window.innerWidth) * 2 - 1
-      mouse.current.y = -(e.clientY / window.innerHeight) * 2 + 1
-    }
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [])
-
+function Scene({ mouse, active }: SceneProps) {
   return (
     <>
       <color attach="background" args={['#000000']} />
-      <ParticleSystem mouse={mouse} />
+      <ParticleSystem mouse={mouse} active={active} />
     </>
   )
 }
 
 export default function ContactParticles() {
+  const mouse = useRef(new THREE.Vector2(0, 0))
+  const active = useRef(false)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    mouse.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+    mouse.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+  }
+
+  const handleMouseEnter = () => {
+    active.current = true
+  }
+
+  const handleMouseLeave = () => {
+    active.current = false
+  }
+
   return (
-    <div className="absolute inset-0 z-0">
+    <div 
+      className="absolute inset-0 z-0"
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <Canvas
         camera={{ position: [0, 0, 8], fov: 60 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true }}
       >
-        <Scene />
+        <Scene mouse={mouse} active={active} />
       </Canvas>
     </div>
   )

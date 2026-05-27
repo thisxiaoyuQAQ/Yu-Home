@@ -218,39 +218,34 @@ function SpiralParticles() {
   )
 }
 
-function Scene() {
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
-      mouseState.x = e.clientX
-      mouseState.y = e.clientY
-      mouseState.active = true
-    }
-
-    const onMouseLeave = () => {
-      mouseState.active = false
-    }
-
-    window.addEventListener('mousemove', onMouseMove)
-    document.body.addEventListener('mouseleave', onMouseLeave)
-
-    return () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      document.body.removeEventListener('mouseleave', onMouseLeave)
-    }
-  }, [])
-
-  return <SpiralParticles />
-}
-
 export default function ProjectsParticles({ className }: { className?: string }) {
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    mouseState.x = e.clientX
+    mouseState.y = e.clientY
+  }
+
+  const handleMouseEnter = () => {
+    mouseState.active = true
+  }
+
+  const handleMouseLeave = () => {
+    mouseState.active = false
+  }
+
   return (
-    <div className={className} style={{ width: '100%', height: '100%' }}>
+    <div 
+      className={className} 
+      style={{ width: '100%', height: '100%' }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <Canvas
         camera={{ position: [0, 0, 400], fov: 60 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
-        <Scene />
+        <SpiralParticles />
       </Canvas>
     </div>
   )
