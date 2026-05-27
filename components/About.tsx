@@ -17,7 +17,9 @@ export default function About() {
       className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
     >
       <AboutParticles className="absolute inset-0 z-0" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-950/50 to-black pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-[2]" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
       
       <div className="max-w-4xl relative z-10">
         <div className="flex items-center gap-4 mb-12">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -10,16 +10,20 @@ const MOUSE_STRENGTH = 1.5
 const CONNECTION_DISTANCE = 80
 const RETURN_SPEED = 0.008
 const DAMPING = 0.96
+const DRIFT_SPEED = 0.3
+const DRIFT_AMPLITUDE = 30
 
 const mouseState = { x: 0, y: 0, active: false }
 
 function Particles() {
-  const { viewport, camera, size } = useThree()
+  const { camera, size } = useThree()
+  const timeRef = useRef(0)
   
   const data = useMemo(() => {
     const positions = new Float32Array(PARTICLE_COUNT * 3)
     const originalPositions = new Float32Array(PARTICLE_COUNT * 3)
     const velocities = new Float32Array(PARTICLE_COUNT * 3)
+    const phases = new Float32Array(PARTICLE_COUNT * 2)
     
     const spreadX = 1600
     const spreadY = 1200
@@ -40,6 +44,9 @@ function Particles() {
       velocities[i * 3] = 0
       velocities[i * 3 + 1] = 0
       velocities[i * 3 + 2] = 0
+      
+      phases[i * 2] = Math.random() * Math.PI * 2
+      phases[i * 2 + 1] = 0.5 + Math.random() * 1.0
     }
     
     const geometry = new THREE.BufferGeometry()
@@ -52,7 +59,7 @@ function Particles() {
     lineGeometry.setAttribute('color', new THREE.BufferAttribute(lineColors, 3))
     lineGeometry.setDrawRange(0, 0)
     
-    return { positions, originalPositions, velocities, geometry, lineGeometry, linePositions, lineColors }
+    return { positions, originalPositions, velocities, phases, geometry, lineGeometry, linePositions, lineColors }
   }, [])
 
   const pointsMaterial = useMemo(() => new THREE.PointsMaterial({
@@ -71,8 +78,11 @@ function Particles() {
     blending: THREE.AdditiveBlending,
   }), [])
 
-  useFrame(() => {
-    const { positions, originalPositions, velocities, geometry, lineGeometry, linePositions, lineColors } = data
+  useFrame((_, delta) => {
+    timeRef.current += delta
+    const time = timeRef.current
+    
+    const { positions, originalPositions, velocities, phases, geometry, lineGeometry, linePositions, lineColors } = data
     
     const mouseWorldX = (mouseState.x / size.width) * 2 - 1
     const mouseWorldY = -(mouseState.y / size.height) * 2 + 1
@@ -86,10 +96,17 @@ function Particles() {
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const ix = i * 3
       const iy = i * 3 + 1
-      const iz = i * 3 + 2
       
-      const dx = originalPositions[ix] - positions[ix]
-      const dy = originalPositions[iy] - positions[iy]
+      const phase = phases[i * 2]
+      const speed = phases[i * 2 + 1]
+      const driftX = Math.sin(time * DRIFT_SPEED * speed + phase) * DRIFT_AMPLITUDE
+      const driftY = Math.cos(time * DRIFT_SPEED * speed * 0.7 + phase * 1.3) * DRIFT_AMPLITUDE * 0.6
+      
+      const targetX = originalPositions[ix] + driftX
+      const targetY = originalPositions[iy] + driftY
+      
+      const dx = targetX - positions[ix]
+      const dy = targetY - positions[iy]
       
       velocities[ix] += dx * RETURN_SPEED
       velocities[iy] += dy * RETURN_SPEED

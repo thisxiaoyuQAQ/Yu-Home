@@ -92,8 +92,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             animation: 'hue-rotate 6s linear infinite',
-            transition: 'transform 0.4s ease, filter 0.3s ease',
-            transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+            transition: 'filter 0.3s ease',
           }}
         >
           {text}
@@ -131,15 +130,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
           {text}
         </h1>
 
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle at ${mousePos.x * 100}% ${mousePos.y * 100}%, rgba(255,255,255,0.3) 0%, transparent 40%)`,
-            mixBlendMode: 'overlay',
-            opacity: isHovered ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-          }}
-        />
+
 
         <div
           className="absolute -inset-4 pointer-events-none"

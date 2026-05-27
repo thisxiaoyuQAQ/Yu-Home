@@ -7,12 +7,12 @@ import * as THREE from 'three'
 const PARTICLE_COUNT = 4000
 const COLUMNS = 50
 const ROWS = 25
-const MOUSE_RADIUS = 120
-const MOUSE_STRENGTH = 25
-const RETURN_SPEED = 0.03
-const DAMPING = 0.92
+const MOUSE_RADIUS = 200
+const MOUSE_STRENGTH = 60
+const RETURN_SPEED = 0.015
+const DAMPING = 0.94
 
-const mouseState = { x: 0, y: 0, active: false }
+export const skillsMouseState = { x: 0, y: 0, active: false }
 
 function DataFlowParticles() {
   const { camera, size } = useThree()
@@ -123,8 +123,8 @@ function DataFlowParticles() {
 
     const { positions, basePositions, velocities, offsets, colors, columnSpeeds, geometry, spreadY } = data
 
-    const mouseWorldX = (mouseState.x / size.width) * 2 - 1
-    const mouseWorldY = -(mouseState.y / size.height) * 2 + 1
+    const mouseWorldX = (skillsMouseState.x / size.width) * 2 - 1
+    const mouseWorldY = -(skillsMouseState.y / size.height) * 2 + 1
 
     const vector = new THREE.Vector3(mouseWorldX, mouseWorldY, 0.5)
     vector.unproject(camera)
@@ -150,7 +150,7 @@ function DataFlowParticles() {
       const dy = currentY - mousePos.y
       const dist = Math.sqrt(dx * dx + dy * dy)
 
-      if (mouseState.active && dist < MOUSE_RADIUS && dist > 0) {
+      if (skillsMouseState.active && dist < MOUSE_RADIUS && dist > 0) {
         const force = (1 - dist / MOUSE_RADIUS) * MOUSE_STRENGTH
         const angle = Math.atan2(dy, dx)
         velocities[i * 3] += Math.cos(angle) * force
@@ -188,28 +188,11 @@ function DataFlowParticles() {
 }
 
 export default function SkillsParticles({ className }: { className?: string }) {
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    mouseState.x = e.clientX - rect.left
-    mouseState.y = e.clientY - rect.top
-  }
-
-  const handleMouseEnter = () => {
-    mouseState.active = true
-  }
-
-  const handleMouseLeave = () => {
-    mouseState.active = false
-  }
-
   return (
     <div 
       id="skills-canvas"
       className={className} 
-      style={{ width: '100%', height: '100%' }}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      style={{ width: '100%', height: '100%', pointerEvents: 'none' }}
     >
       <Canvas
         camera={{ position: [0, 0, 400], fov: 75 }}

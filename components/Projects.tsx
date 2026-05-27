@@ -25,7 +25,7 @@ const projects = [
     link: 'https://github.com/thisxiaoyuQAQ/PapiWebApi',
   },
   {
-    title: 'Chinesename',
+    title: 'ChineseName',
     description: '初中时写的一个Minecraft中文名插件',
     tags: ['Java', 'Bukkit'],
     link: 'https://github.com/thisxiaoyuQAQ/chinesename',
@@ -39,7 +39,7 @@ const projects = [
     {
     title: 'Sentry',
     description: '电脑监控系统，可以记录键盘操作、屏幕截图、屏幕录制和摄像头录制',
-    tags: ['React', 'TypeScript', 'Tailwind'],
+    tags: ['Rust', 'React', 'TypeScript'],
     link: 'https://github.com/thisxiaoyuQAQ/Sentry/settings',
   },  
 ]
@@ -100,8 +100,10 @@ export default function Projects() {
 
   return (
     <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
-      <ProjectsParticles className="absolute inset-0 opacity-60" />
-      <div className="absolute inset-0 bg-gradient-to-t from-gray-950/30 via-black/50 to-black/50" />
+      <ProjectsParticles className="absolute inset-0 z-0 opacity-70" />
+      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-transparent z-[1] pointer-events-none" />
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-[2]" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
       
       <div className="max-w-6xl w-full relative z-10">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">

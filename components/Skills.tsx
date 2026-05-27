@@ -1,8 +1,9 @@
 'use client'
 
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import { skillsMouseState } from './SkillsParticles'
 
 const SkillsParticles = dynamic(() => import('./SkillsParticles'), { ssr: false })
 
@@ -61,12 +62,12 @@ export default function Skills() {
       id="skills" 
       className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
     >
-      <div className="absolute inset-0">
-        <SkillsParticles className="w-full h-full opacity-60" />
-      </div>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-black/50 to-black" />
+      <SkillsParticles className="absolute inset-0 w-full h-full opacity-70 z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-transparent to-black/30 pointer-events-none z-[1]" />
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-[2]" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
       
-      <div className="max-w-4xl w-full relative z-10">
+      <div className="max-w-4xl w-full relative z-10 pointer-events-none">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">
           <div className={`h-px bg-gradient-to-l from-white/30 to-transparent flex-1 transition-all duration-1000 ease-out-expo ${titleVisible ? 'opacity-100 scale-x-100 origin-right' : 'opacity-0 scale-x-0'}`} />
           <h2 
