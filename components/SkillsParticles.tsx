@@ -18,11 +18,14 @@ const LINK_DIST = isMobile ? 80 : 115
 const LINK_DIST_SQ = LINK_DIST * LINK_DIST
 
 // Backdrop dust layer — Hero-style ambient stars, sits behind neural network.
-const DUST_COUNT = isMobile ? 1200 : 3000
-const DUST_SPREAD_X = 3200
-const DUST_SPREAD_Y = 2000
-const DUST_Z_MIN = -600
-const DUST_Z_MAX = -180
+const DUST_COUNT = isMobile ? 1500 : 4000
+const DUST_SPREAD_X = 3600
+const DUST_SPREAD_Y = 2400
+// Place dust IN FRONT of camera (camera at z=400), spread across whole field
+// but deeper than nodes (nodes at z=±100). Z range below puts dust at distance
+// 200-700 from camera — visible at proper size.
+const DUST_Z_MIN = -300
+const DUST_Z_MAX = 200
 
 const SPREAD_X = 2400
 const SPREAD_Y = 1400
@@ -211,17 +214,18 @@ const DUST_VERTEX_SHADER = /* glsl */ `
 
     // Same amber↔purple Y-gradient as Hero.
     float t = clamp((transformed.y + uSpreadY * 0.5) / uSpreadY, 0.0, 1.0);
-    vec3 amber  = vec3(1.0, 0.667, 0.235);
-    vec3 purple = vec3(0.431, 0.235, 0.902);
+    vec3 amber  = vec3(1.0, 0.72, 0.30);
+    vec3 purple = vec3(0.56, 0.36, 1.0);
     vColor = mix(purple, amber, t);
 
     // Twinkle: slow alpha oscillation per-particle so the field shimmers.
-    float twinkle = 0.55 + 0.45 * sin(uTime * 0.9 + aShift.y);
-    vAlpha = twinkle * 0.55;
+    float twinkle = 0.7 + 0.3 * sin(uTime * 0.9 + aShift.y);
+    vAlpha = twinkle;
 
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = uSize * aSize * uPixelRatio * (110.0 / -mvPosition.z);
+    // Larger distance constant so dust reads at this scene scale.
+    gl_PointSize = uSize * aSize * uPixelRatio * (450.0 / -mvPosition.z);
   }
 `
 
@@ -233,9 +237,11 @@ const DUST_FRAGMENT_SHADER = /* glsl */ `
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
-    // Sharp star with crisp falloff (matches Hero's particle look).
-    float a = smoothstep(0.5, 0.0, d) * 0.35 * vAlpha + 0.10 * vAlpha;
-    gl_FragColor = vec4(vColor, a);
+    // Bright star with hot core + soft halo so dust reads clearly.
+    float core = smoothstep(0.2, 0.0, d);
+    float halo = smoothstep(0.5, 0.0, d);
+    float a = (halo * 0.55 + core * 0.45) * vAlpha;
+    gl_FragColor = vec4(vColor * (1.0 + core * 0.5), a);
   }
 `
 
@@ -254,11 +260,11 @@ function StarDust() {
       positions[i * 3 + 1] = (Math.random() - 0.5) * DUST_SPREAD_Y
       positions[i * 3 + 2] = DUST_Z_MIN + Math.random() * (DUST_Z_MAX - DUST_Z_MIN)
 
-      sizes[i] = Math.random() * 0.7 + 0.25
+      sizes[i] = Math.random() * 1.2 + 0.5
       shift[i * 4]     = Math.random() * Math.PI
       shift[i * 4 + 1] = Math.random() * Math.PI * 2
       shift[i * 4 + 2] = (Math.random() * 0.9 + 0.1) * Math.PI * 0.1
-      shift[i * 4 + 3] = Math.random() * 0.9 + 0.1
+      shift[i * 4 + 3] = Math.random() * 1.5 + 0.3
     }
 
     const geo = new THREE.BufferGeometry()
@@ -269,7 +275,7 @@ function StarDust() {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uSize: { value: 1.2 },
+        uSize: { value: 2.2 },
         uPixelRatio: { value: gl.getPixelRatio() },
         uSpreadY: { value: DUST_SPREAD_Y },
       },
