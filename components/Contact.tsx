@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 
-const ContactParticles = dynamic(() => import('./ContactParticles'), { ssr: false })
+const ContactBlackHole = dynamic(() => import('./ContactBlackHole'), { ssr: false })
 
 const contacts = [
   { label: 'Email', value: 'starleapxy@gmail.com', href: 'mailto:starleapxy@gmail.com', icon: '✉' },
@@ -18,8 +18,11 @@ export default function Contact() {
 
   return (
     <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden">
-      <ContactParticles />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-gray-900/30 via-[#0a0010] to-[#0a0010] pointer-events-none" />
+      <div className="absolute inset-0 z-0">
+        <ContactBlackHole />
+      </div>
+      {/* Soft bottom vignette — keeps the footer line legible without dimming the disk rim */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-transparent via-transparent to-[#0a0010] pointer-events-none z-[5]" />
       
       <div className="max-w-4xl w-full text-center relative z-10">
         <div ref={titleRef}>
@@ -43,7 +46,7 @@ export default function Contact() {
               href={contact.href}
               target="_blank"
               rel="noopener noreferrer"
-              className={`group flex items-center justify-between py-5 px-6 bg-card border border-white/5 hover:border-white/20 transition-all duration-500 ease-out-expo hover-lift ${linksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+              className={`group flex items-center justify-between py-5 px-6 bg-white/[0.04] backdrop-blur-sm border border-white/10 hover:border-white/30 hover:bg-white/[0.08] transition-all duration-500 ease-out-expo hover-lift ${linksVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
               style={{ transitionDelay: `${index * 100}ms` }}
             >
               <div className="flex items-center gap-4">
