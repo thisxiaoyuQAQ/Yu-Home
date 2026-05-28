@@ -28,7 +28,7 @@ yarn-error.log*
 
 # vercel
 .vercel
-
+/new.quancy.cn/
 # typescript
 *.tsbuildinfo
 next-env.d.ts
