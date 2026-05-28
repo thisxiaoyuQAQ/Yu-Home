@@ -88,14 +88,25 @@ const VERTEX_SHADER = /* glsl */ `
 
     vec3 transformed = position + wobble;
 
-    // Color by normalized cylindrical distance — warm amber core → soft
-    // peach/rose rim. No purple — keeps the disk warm-toned all the way out
-    // so there's no purple haze reading as a screen overlay.
+    // Color by normalized cylindrical distance — multi-stop nebula gradient
+    // anchored to Hero's amber-core / deep-purple-rim palette, with a hot
+    // magenta midband and a cool cyan/violet halo for extra vibrancy. Reads
+    // as one continuous palette family with HeroParticles.
     float d = length(abs(position) / vec3(110.0, 14.0, 110.0));
     d = clamp(d, 0.0, 1.0);
-    vec3 core = vec3(255.0, 190.0, 80.0)  / 255.0;
-    vec3 rim  = vec3(230.0, 110.0, 90.0)  / 255.0;
-    vColor = mix(core, rim, d);
+    vec3 amber   = vec3(255.0, 190.0,  60.0) / 255.0;  // hot inner ring (Hero core)
+    vec3 magenta = vec3(255.0,  80.0, 160.0) / 255.0;  // saturated midband
+    vec3 purple  = vec3(140.0,  70.0, 240.0) / 255.0;  // Hero rim
+    vec3 cyan    = vec3( 90.0, 200.0, 255.0) / 255.0;  // cool outer halo
+    vec3 col;
+    if (d < 0.33) {
+      col = mix(amber, magenta, d / 0.33);
+    } else if (d < 0.7) {
+      col = mix(magenta, purple, (d - 0.33) / 0.37);
+    } else {
+      col = mix(purple, cyan, (d - 0.7) / 0.3);
+    }
+    vColor = col;
 
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mvPosition;
@@ -110,8 +121,11 @@ const FRAGMENT_SHADER = /* glsl */ `
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
-    float alpha = smoothstep(0.5, 0.0, d) * 0.35 + 0.15;
-    gl_FragColor = vec4(vColor, alpha);
+    // Slightly higher core alpha + a soft color boost so the saturated
+    // magentas and cyans stay vivid under additive blending.
+    float alpha = smoothstep(0.5, 0.0, d) * 0.45 + 0.18;
+    vec3 boosted = vColor * 1.15;
+    gl_FragColor = vec4(boosted, alpha);
   }
 `
 
@@ -312,8 +326,8 @@ function GalaxyPoints() {
 
     const startVert = bolt.vertexStart
     const endVert = bolt.vertexStart + data.segmentsPerBolt * 2
-    const cyan = new THREE.Color(0xaee0ff)
-    const violet = new THREE.Color(0xc9a6ff)
+    const cyan = new THREE.Color(0x6fd6ff)    // brighter electric cyan
+    const violet = new THREE.Color(0xff5cc8)   // hot magenta tip — matches disk midband
     for (let v = startVert; v < endVert; v++) {
       const t = (v - startVert) / (endVert - startVert)
       const c = new THREE.Color().lerpColors(cyan, violet, t)
