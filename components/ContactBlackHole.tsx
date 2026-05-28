@@ -76,8 +76,11 @@ const VERTEX_SHADER = /* glsl */ `
 
     // Color by normalized cylindrical distance — matches HeroParticles'
     // two-stop palette exactly so the contact scene reads as the same galaxy:
-    // warm amber core → deep purple rim. No midbands, no extra hues.
-    float d = length(abs(position) / vec3(110.0, 14.0, 110.0));
+    // warm amber core → deep purple rim. The normalization denominator is
+    // intentionally LARGER than OUTER_RADIUS so the amber core region
+    // stretches out to ~half the disk in world units — that's the bright
+    // yellow halo that visually wraps the contact content.
+    float d = length(abs(position) / vec3(220.0, 14.0, 220.0));
     d = clamp(d, 0.0, 1.0);
     vec3 core = vec3(255.0, 170.0, 60.0)  / 255.0; // amber (Hero)
     vec3 rim  = vec3(110.0, 60.0, 230.0)  / 255.0; // deep purple (Hero)
@@ -490,14 +493,15 @@ function PostFX() {
     const composer = new EffectComposer(gl)
     composer.addPass(new RenderPass(scene, camera))
 
-    // Bloom — restrained glow that matches Hero's soft luminance. Lower
-    // strength + higher threshold so only the bright core blooms, not every
-    // mid-tone particle.
+    // Bloom — expanded amber core needs more bleed so the yellow halo
+    // visibly wraps the contact content. Threshold lowered so the larger
+    // warm-toned interior actually lifts into glow, radius widened so the
+    // halo spreads out past the inner cards.
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(size.width, size.height),
-      0.65,  // strength
-      0.55,  // radius
-      0.45,  // threshold — only the hot core lifts into glow
+      1.1,   // strength
+      0.9,   // radius — wider bleed
+      0.25,  // threshold — let the warm core region glow, not just the brightest pixels
     )
     composer.addPass(bloom)
 
