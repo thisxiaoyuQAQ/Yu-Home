@@ -68,8 +68,6 @@ export default function About() {
         </div>
       </div>
       
-      <div className="absolute -right-32 top-1/2 -translate-y-1/2 w-64 h-64 border border-white/5 rounded-full" />
-      <div className="absolute -right-16 top-1/2 -translate-y-1/2 w-48 h-48 border border-white/5 rounded-full" />
     </section>
   )
 }
