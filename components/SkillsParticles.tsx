@@ -13,8 +13,8 @@ import * as THREE from 'three'
 
 const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
 const NODE_COUNT = isMobile ? 200 : 400
-const MAX_LINKS = isMobile ? 500 : 1200
-const LINK_DIST = isMobile ? 60 : 80
+const MAX_LINKS = isMobile ? 900 : 2200
+const LINK_DIST = isMobile ? 80 : 115
 const LINK_DIST_SQ = LINK_DIST * LINK_DIST
 
 const SPREAD_X = 2400
@@ -26,11 +26,16 @@ const GRID_ROWS = 12
 const CELL_W = SPREAD_X / GRID_COLS
 const CELL_H = SPREAD_Y / GRID_ROWS
 
-const MOUSE_HIT = 5         // closest N nodes activated by mouse
-const BURST_HIT = 3         // closest N nodes activated by skill-bar burst
-const SPONT_PER_FRAME = 2   // spontaneous activations per frame
-const DECAY = 0.94
-const PROPAGATE = 0.6
+const MOUSE_HIT = 40        // closest N nodes fully lit by mouse
+const MOUSE_INFLUENCE_R = 900 // soft halo radius (world units; SPREAD_X=2400)
+const MOUSE_SHOCK_R = 450   // inner shock ring — full-power boost
+const MOUSE_CORE_R = 180    // inner core — extreme glow + size bonus
+const BURST_HIT = 8         // closest N nodes activated by skill-bar burst
+const SPONT_PER_FRAME = 6   // spontaneous activations per frame — keeps field lively
+const SPONT_LEVEL = 0.7
+const BASE_GLOW = 0.5       // baseline activation everywhere (always-on look)
+const DECAY = 0.97          // slower decay → trails linger
+const PROPAGATE = 0.88      // strong neighbor propagation for shockwave
 
 export const skillsMouseState = {
   x: 0,
@@ -45,6 +50,9 @@ const NODE_VERTEX_SHADER = /* glsl */ `
   uniform float uPixelRatio;
   uniform float uSize;
   uniform float uSpreadY;
+  uniform vec2  uMouse;
+  uniform float uMouseActive;
+  uniform float uMouseR;
 
   attribute float aSize;
   attribute vec4  aShift;        // (phaseA, phaseB, frequency, amplitude) — Hero-style
@@ -52,6 +60,7 @@ const NODE_VERTEX_SHADER = /* glsl */ `
 
   varying vec3  vColor;
   varying float vAlpha;
+  varying float vMouseProx;
 
   const float PI2 = 6.2831853;
 
@@ -66,17 +75,29 @@ const NODE_VERTEX_SHADER = /* glsl */ `
 
     vec3 transformed = position + wobble;
 
-    float glow = 0.3 + aActivation * 0.7;
+    // Mouse proximity (smooth 0→1 from edge of radius to center)
+    float dM = length(transformed.xy - uMouse);
+    float prox = (1.0 - smoothstep(0.0, uMouseR, dM)) * uMouseActive;
+    vMouseProx = prox;
+
+    // Push nodes slightly AWAY from mouse for a subtle parallax effect.
+    vec2 push = normalize(transformed.xy - uMouse + vec2(0.0001)) * prox * 18.0;
+    transformed.xy += push;
+
+    float glow = 0.65 + aActivation * 1.1 + prox * 0.8;
 
     float t = clamp((transformed.y + uSpreadY * 0.5) / uSpreadY, 0.0, 1.0);
-    vec3 amber  = vec3(1.0, 0.667, 0.235);
-    vec3 purple = vec3(0.431, 0.235, 0.902);
-    vColor = mix(purple, amber, t) * glow;
-    vAlpha = 0.5 + aActivation * 0.5;
+    vec3 amber  = vec3(1.0, 0.72, 0.30);
+    vec3 purple = vec3(0.56, 0.36, 1.0);
+    vec3 base = mix(purple, amber, t);
+    // Cyan/white tint near the mouse for a "scanning" feel.
+    vec3 cursor = vec3(0.6, 0.95, 1.0);
+    vColor = mix(base, cursor, prox * 0.7) * glow;
+    vAlpha = 0.85 + aActivation * 0.15 + prox * 0.3;
 
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = uSize * aSize * uPixelRatio * (600.0 / -mvPosition.z) * (1.0 + aActivation * 0.5);
+    gl_PointSize = uSize * aSize * uPixelRatio * (600.0 / -mvPosition.z) * (1.0 + aActivation * 1.2 + prox * 2.5);
   }
 `
 
@@ -84,18 +105,27 @@ const NODE_FRAGMENT_SHADER = /* glsl */ `
   precision highp float;
   varying vec3  vColor;
   varying float vAlpha;
+  varying float vMouseProx;
 
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
-    float a = smoothstep(0.5, 0.1, d) * vAlpha;
-    gl_FragColor = vec4(vColor, a);
+    // Hot core + soft halo for a glowing star look.
+    float core = smoothstep(0.18, 0.0, d);
+    float halo = smoothstep(0.5, 0.1, d);
+    float a = (halo * 0.55 + core * 0.9) * vAlpha;
+    // Mouse-near nodes get an extra outer glow ring.
+    float ring = smoothstep(0.5, 0.25, d) * vMouseProx * 0.6;
+    gl_FragColor = vec4(vColor * (1.0 + core * 0.6 + vMouseProx * 0.5), a + ring);
   }
 `
 
 const LINE_VERTEX_SHADER = /* glsl */ `
   uniform float uTime;
   uniform float uSpreadY;
+  uniform vec2  uMouse;
+  uniform float uMouseActive;
+  uniform float uMouseR;
 
   attribute float aLineActivation;
   attribute float aLinePhase;
@@ -104,13 +134,20 @@ const LINE_VERTEX_SHADER = /* glsl */ `
   varying vec3  vColor;
   varying float vAlpha;
   varying float vPulseT;
+  varying float vMouseProx;
 
   void main() {
     float t = clamp((position.y + uSpreadY * 0.5) / uSpreadY, 0.0, 1.0);
-    vec3 amber  = vec3(1.0, 0.667, 0.235);
-    vec3 purple = vec3(0.431, 0.235, 0.902);
-    vColor = mix(purple, amber, t);
-    vAlpha = 0.03 + aLineActivation * 0.5;
+    vec3 amber  = vec3(1.0, 0.72, 0.30);
+    vec3 purple = vec3(0.56, 0.36, 1.0);
+    vec3 cursor = vec3(0.6, 0.95, 1.0);
+
+    float dM = length(position.xy - uMouse);
+    float prox = (1.0 - smoothstep(0.0, uMouseR, dM)) * uMouseActive;
+    vMouseProx = prox;
+
+    vColor = mix(mix(purple, amber, t), cursor, prox * 0.7);
+    vAlpha = 0.18 + aLineActivation * 0.7 + prox * 0.6;
     vPulseT = aLineEnd;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -123,12 +160,19 @@ const LINE_FRAGMENT_SHADER = /* glsl */ `
   varying vec3  vColor;
   varying float vAlpha;
   varying float vPulseT;
+  varying float vMouseProx;
 
   void main() {
-    float phase = fract(uTime * 0.5 + vPulseT);
-    float pulse = smoothstep(0.0, 0.3, phase) * smoothstep(1.0, 0.7, phase);
-    float a = vAlpha * (0.3 + pulse * 0.7);
-    gl_FragColor = vec4(vColor, a);
+    // Two-band pulse: a fast one and a slow one — line never feels static.
+    // Pulses near mouse run faster, like the network is reacting.
+    float speedBoost = 1.0 + vMouseProx * 1.5;
+    float p1 = fract(uTime * 1.1 * speedBoost + vPulseT);
+    float p2 = fract(uTime * 0.45 * speedBoost + vPulseT * 0.5);
+    float pulse1 = smoothstep(0.0, 0.22, p1) * smoothstep(1.0, 0.6, p1);
+    float pulse2 = smoothstep(0.0, 0.28, p2) * smoothstep(1.0, 0.55, p2);
+    float pulse = max(pulse1, pulse2 * 0.7);
+    float a = vAlpha * (0.55 + pulse * 1.1);
+    gl_FragColor = vec4(vColor * (1.0 + pulse * 0.7 + vMouseProx * 0.4), a);
   }
 `
 
@@ -158,10 +202,10 @@ function NeuralNetwork() {
       shift[i * 4 + 3] = Math.random() * 1.2 + 0.4
 
       const angle = Math.random() * Math.PI * 2
-      const speed = 4 + Math.random() * 8
+      const speed = 7 + Math.random() * 12
       drift[i * 3]     = Math.cos(angle) * speed
       drift[i * 3 + 1] = Math.sin(angle) * speed
-      drift[i * 3 + 2] = (Math.random() - 0.5) * 2
+      drift[i * 3 + 2] = (Math.random() - 0.5) * 3
     }
 
     const nodeGeo = new THREE.BufferGeometry()
@@ -176,6 +220,9 @@ function NeuralNetwork() {
         uSize: { value: 4.0 },
         uPixelRatio: { value: gl.getPixelRatio() },
         uSpreadY: { value: SPREAD_Y },
+        uMouse: { value: new THREE.Vector2(99999, 99999) },
+        uMouseActive: { value: 0 },
+        uMouseR: { value: MOUSE_INFLUENCE_R },
       },
       vertexShader: NODE_VERTEX_SHADER,
       fragmentShader: NODE_FRAGMENT_SHADER,
@@ -208,6 +255,9 @@ function NeuralNetwork() {
       uniforms: {
         uTime: { value: 0 },
         uSpreadY: { value: SPREAD_Y },
+        uMouse: { value: new THREE.Vector2(99999, 99999) },
+        uMouseActive: { value: 0 },
+        uMouseR: { value: MOUSE_INFLUENCE_R },
       },
       vertexShader: LINE_VERTEX_SHADER,
       fragmentShader: LINE_FRAGMENT_SHADER,
@@ -335,21 +385,51 @@ function NeuralNetwork() {
     const mx = mWorld.x
     const my = mWorld.y
 
-    // 5) seed nextAct with decayed current
-    for (let i = 0; i < NODE_COUNT; i++) nextAct[i] = activation[i] * DECAY
+    // Feed mouse + active to GPU shaders (with smoothed active for fade in/out)
+    ctx.nodeMat.uniforms.uMouse.value.set(mx, my)
+    ctx.lineMat.uniforms.uMouse.value.set(mx, my)
+    const targetActive = skillsMouseState.active ? 1 : 0
+    const curActive = ctx.nodeMat.uniforms.uMouseActive.value as number
+    const smoothed = curActive + (targetActive - curActive) * 0.15
+    ctx.nodeMat.uniforms.uMouseActive.value = smoothed
+    ctx.lineMat.uniforms.uMouseActive.value = smoothed
 
-    // 6) Mouse activates nearest MOUSE_HIT nodes (only if active)
+    // 5) seed nextAct with decayed current + always-on baseline
+    for (let i = 0; i < NODE_COUNT; i++) {
+      const decayed = activation[i] * DECAY
+      nextAct[i] = decayed > BASE_GLOW ? decayed : BASE_GLOW
+    }
+
+    // 6) Mouse: three-tier radial activation
+    //    - outer halo: soft falloff
+    //    - shock ring: strong boost
+    //    - core: instant 1.0 + sets up propagation seed
     if (skillsMouseState.active) {
+      const rSq = MOUSE_INFLUENCE_R * MOUSE_INFLUENCE_R
+      const shockSq = MOUSE_SHOCK_R * MOUSE_SHOCK_R
+      const coreSq = MOUSE_CORE_R * MOUSE_CORE_R
       const top: { i: number; d: number }[] = []
       for (let i = 0; i < NODE_COUNT; i++) {
         const dxv = positions[i * 3] - mx
         const dyv = positions[i * 3 + 1] - my
-        const d = dxv * dxv + dyv * dyv
+        const dsq = dxv * dxv + dyv * dyv
+        if (dsq < rSq) {
+          const f = 1.0 - dsq / rSq
+          let halo = f * f * 0.85
+          if (dsq < shockSq) {
+            const sf = 1.0 - dsq / shockSq
+            halo = Math.max(halo, 0.75 + sf * 0.2)
+          }
+          if (dsq < coreSq) {
+            halo = 1.0
+          }
+          if (halo > nextAct[i]) nextAct[i] = halo
+        }
         if (top.length < MOUSE_HIT) {
-          top.push({ i, d })
+          top.push({ i, d: dsq })
           top.sort((a, b) => a.d - b.d)
-        } else if (d < top[MOUSE_HIT - 1].d) {
-          top[MOUSE_HIT - 1] = { i, d }
+        } else if (dsq < top[MOUSE_HIT - 1].d) {
+          top[MOUSE_HIT - 1] = { i, d: dsq }
           top.sort((a, b) => a.d - b.d)
         }
       }
@@ -382,7 +462,7 @@ function NeuralNetwork() {
     // 8) Spontaneous activation
     for (let s = 0; s < SPONT_PER_FRAME; s++) {
       const i = (Math.random() * NODE_COUNT) | 0
-      if (nextAct[i] < 0.5) nextAct[i] = 0.5
+      if (nextAct[i] < SPONT_LEVEL) nextAct[i] = SPONT_LEVEL
     }
 
     // 9) Propagate along adjacency
