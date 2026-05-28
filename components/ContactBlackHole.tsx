@@ -16,13 +16,14 @@ import * as THREE from 'three'
 // uTime and the group rotation.
 
 const HALO_COUNT = 0       // halo removed — no central sphere
-const DISK_COUNT = 120000  // the main accretion disk (densified to fill the void)
+const DISK_COUNT = 160000  // densified to keep particle density at the larger radius
 const TOTAL = HALO_COUNT + DISK_COUNT
 
-// Disk in local coords. Inner radius is now 0 — the void at the center is
-// gone, particles fill the whole disk. Outer radius extends past text column.
+// Disk in local coords. Inner radius is 0 (void filled). Outer radius pushed
+// out so the disk visibly extends past the viewport edges — the user reads
+// it as a full-screen swirl rather than a contained circle.
 const INNER_RADIUS = 0
-const OUTER_RADIUS = 70
+const OUTER_RADIUS = 110
 const DISK_HEIGHT = 1.6
 
 // Rest rotation — disk now faces the user head-on (XY plane, Z normal).
@@ -47,18 +48,22 @@ const ORBIT_TEXT = [
   'DESIGN',
   'CODE',
 ]
-const TEXT_RADIUS = 52      // where the text ring sits (inside outer rim)
-const TEXT_SIZE = 3.6
+const TEXT_RADIUS = 82      // where the text ring sits (inside outer rim)
+const TEXT_SIZE = 4.2
 
-// Lightning system
-const MAX_BOLTS = 8
+// Lightning system — auto-burst every 1s: fires 1–5 bolts in sequence,
+// each separated by 0.1s. If the cursor is over the canvas, every bolt
+// in the burst targets the cursor position (projected onto the disk
+// plane); otherwise bolts hit random disk particles.
+const MAX_BOLTS = 16
 const SEGMENTS_PER_BOLT = 12
 const FORKS_PER_BOLT = 2
 const SEGMENTS_PER_FORK = 5
 const BOLT_LIFETIME = 0.32
-const AUTO_INTERVAL_MIN = 1.5
-const AUTO_INTERVAL_MAX = 3.0
-const HOVER_COOLDOWN = 0.18
+const BURST_INTERVAL = 1.0          // seconds between bursts
+const BURST_MIN = 1                 // min bolts per burst
+const BURST_MAX = 5                 // max bolts per burst
+const BURST_BOLT_GAP = 0.1          // seconds between bolts within a burst
 
 const VERTEX_SHADER = /* glsl */ `
   uniform float uTime;
@@ -83,11 +88,13 @@ const VERTEX_SHADER = /* glsl */ `
 
     vec3 transformed = position + wobble;
 
-    // Color by normalized cylindrical distance — warm amber core → cool purple rim.
-    float d = length(abs(position) / vec3(70.0, 14.0, 70.0));
+    // Color by normalized cylindrical distance — warm amber core → soft
+    // peach/rose rim. No purple — keeps the disk warm-toned all the way out
+    // so there's no purple haze reading as a screen overlay.
+    float d = length(abs(position) / vec3(110.0, 14.0, 110.0));
     d = clamp(d, 0.0, 1.0);
-    vec3 core = vec3(255.0, 170.0, 60.0)  / 255.0;
-    vec3 rim  = vec3(110.0, 60.0, 230.0)  / 255.0;
+    vec3 core = vec3(255.0, 190.0, 80.0)  / 255.0;
+    vec3 rim  = vec3(230.0, 110.0, 90.0)  / 255.0;
     vColor = mix(core, rim, d);
 
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
@@ -226,8 +233,9 @@ function GalaxyPoints() {
       bolts,
       segmentsPerBolt,
       nextBoltSlot: { current: 0 },
-      nextAutoBolt: { current: 1.0 },
-      lastHoverBolt: { current: -1 },
+      nextBurstAt: { current: 0.5 },          // when next burst kicks off
+      burstRemaining: { current: 0 },         // bolts left in current burst
+      nextBurstBoltAt: { current: 0 },        // when next bolt in burst fires
     }
   }, [gl])
 
@@ -337,54 +345,44 @@ function GalaxyPoints() {
       activeRef.current = m.active
     }
 
-    // Auto-trigger lightning from void center to a random disk particle.
-    if (elapsed >= data.nextAutoBolt.current) {
-      const idx = HALO_COUNT + Math.floor(Math.random() * DISK_COUNT)
-      spawnBolt(
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(
-          data.positions[idx * 3],
-          data.positions[idx * 3 + 1],
-          data.positions[idx * 3 + 2],
-        ),
-        elapsed,
-      )
-      data.nextAutoBolt.current = elapsed +
-        AUTO_INTERVAL_MIN + Math.random() * (AUTO_INTERVAL_MAX - AUTO_INTERVAL_MIN)
+    // Burst scheduler: every BURST_INTERVAL seconds, queue 1–5 bolts spaced
+    // BURST_BOLT_GAP apart. If cursor is over the canvas, every bolt in the
+    // burst targets the cursor's current position on the disk plane; otherwise
+    // bolts strike random disk particles.
+    if (data.burstRemaining.current === 0 && elapsed >= data.nextBurstAt.current) {
+      data.burstRemaining.current = BURST_MIN + Math.floor(Math.random() * (BURST_MAX - BURST_MIN + 1))
+      data.nextBurstBoltAt.current = elapsed
+      data.nextBurstAt.current = elapsed + BURST_INTERVAL
     }
 
-    // Hover-trigger: pick nearest disk particle to cursor (rough XY screen-space).
-    if (activeRef.current && elapsed - data.lastHoverBolt.current > HOVER_COOLDOWN) {
-      const mx = (mouseRef.current.x * viewport.width) / 2
-      const my = (mouseRef.current.y * viewport.height) / 2
-      let bestIdx = -1
-      let bestDistSq = 25
-      const sampleStep = 41
-      for (let i = HALO_COUNT; i < TOTAL; i += sampleStep) {
-        const px = data.positions[i * 3]
-        // Disk lies in XZ local space; outer group's REST_PITCH rotates local Z
-        // onto world Y, so we compare against position.z for the cursor's Y.
-        const py = data.positions[i * 3 + 2]
-        const dx = px - mx
-        const dy = py - my
-        const dSq = dx * dx + dy * dy
-        if (dSq < bestDistSq) {
-          bestDistSq = dSq
-          bestIdx = i
+    while (data.burstRemaining.current > 0 && elapsed >= data.nextBurstBoltAt.current) {
+      let target: THREE.Vector3
+      if (activeRef.current) {
+        // Lightning runs in world space; the disk faces the camera at z=0.
+        // Convert cursor NDC → world XY directly, clamp to disk radius so the
+        // bolt always lands on the visible disk.
+        const wx = (mouseRef.current.x * viewport.width) / 2
+        const wy = (mouseRef.current.y * viewport.height) / 2
+        const r = Math.sqrt(wx * wx + wy * wy)
+        const maxR = OUTER_RADIUS * 0.98
+        if (r > maxR) {
+          const s = maxR / r
+          target = new THREE.Vector3(wx * s, wy * s, 0)
+        } else {
+          target = new THREE.Vector3(wx, wy, 0)
         }
+      } else {
+        // Idle target: random point on the disk in world space. The disk in
+        // local space is (x, 0, z); after REST_PITCH = -π/2 around X that
+        // maps to world (x, z, 0).
+        const idx = HALO_COUNT + Math.floor(Math.random() * DISK_COUNT)
+        const lx = data.positions[idx * 3]
+        const lz = data.positions[idx * 3 + 2]
+        target = new THREE.Vector3(lx, lz, 0)
       }
-      if (bestIdx >= 0) {
-        spawnBolt(
-          new THREE.Vector3(0, 0, 0),
-          new THREE.Vector3(
-            data.positions[bestIdx * 3],
-            data.positions[bestIdx * 3 + 1],
-            data.positions[bestIdx * 3 + 2],
-          ),
-          elapsed,
-        )
-        data.lastHoverBolt.current = elapsed
-      }
+      spawnBolt(new THREE.Vector3(0, 0, 0), target, elapsed)
+      data.burstRemaining.current -= 1
+      data.nextBurstBoltAt.current += BURST_BOLT_GAP
     }
 
     // Fade bolts.
@@ -471,22 +469,27 @@ function GalaxyPoints() {
   }, [])
 
   return (
-    <group rotation={[REST_PITCH, REST_YAW, REST_ROLL]}>
-      <group ref={groupRef}>
-        <points geometry={data.geometry} material={data.material} />
-        <lineSegments ref={lightningRef} geometry={data.lineGeo} material={data.lineMat} />
-        {labelMeshes.map((m) => (
-          <mesh
-            key={m.key}
-            geometry={m.geometry}
-            material={m.material}
-            position={m.position}
-            rotation={m.rotation}
-            renderOrder={3}
-          />
-        ))}
+    <>
+      {/* Lightning lives in world space — bolts are computed in world coords
+          so they don't ride the disk's rotation, which lets the cursor-tracked
+          burst actually strike where the user's pointer is. */}
+      <lineSegments ref={lightningRef} geometry={data.lineGeo} material={data.lineMat} />
+      <group rotation={[REST_PITCH, REST_YAW, REST_ROLL]}>
+        <group ref={groupRef}>
+          <points geometry={data.geometry} material={data.material} />
+          {labelMeshes.map((m) => (
+            <mesh
+              key={m.key}
+              geometry={m.geometry}
+              material={m.material}
+              position={m.position}
+              rotation={m.rotation}
+              renderOrder={3}
+            />
+          ))}
+        </group>
       </group>
-    </group>
+    </>
   )
 }
 
@@ -512,7 +515,7 @@ export default function ContactBlackHole({ className }: { className?: string }) 
       onMouseLeave={handleMouseLeave}
     >
       <Canvas
-        camera={{ position: [0, 0, 110], fov: 60, near: 1, far: 600 }}
+        camera={{ position: [0, 0, 140], fov: 60, near: 1, far: 600 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
