@@ -31,7 +31,35 @@ export default function Hero() {
         </div>
         
         <div className={`mt-6 transition-all duration-1000 delay-300 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <p className="text-lg md:text-xl text-white/60 tracking-widest uppercase">Developer & Creator</p>
+          <p
+            className="text-lg md:text-xl tracking-widest uppercase font-light"
+            style={{
+              background: 'linear-gradient(90deg, #ffaa3c 0%, #ffd089 50%, #b89cff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              textShadow: '0 0 30px rgba(255, 170, 60, 0.25)',
+              filter: 'drop-shadow(0 0 12px rgba(184, 156, 255, 0.35))',
+            }}
+          >
+            Developer &amp; Creator
+          </p>
+        </div>
+
+        <div className={`mt-10 transition-all duration-1000 delay-500 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <p
+            className="text-base md:text-lg tracking-[0.25em] font-light"
+            style={{
+              fontFamily: '"Noto Serif SC", "STSong", "KaiTi", serif',
+              background: 'linear-gradient(90deg, rgba(255, 208, 137, 0.85) 0%, rgba(255, 235, 200, 0.95) 50%, rgba(200, 180, 255, 0.85) 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 0 16px rgba(255, 180, 100, 0.3)) drop-shadow(0 0 24px rgba(160, 130, 255, 0.25))',
+            }}
+          >
+            为天地立心，为生民立命，为往圣继绝学，为万世开太平
+          </p>
         </div>
 
       </div>
