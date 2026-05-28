@@ -30,6 +30,9 @@ export default function Hero() {
           <FluidText text="Zhi Yu" className="pointer-events-auto" />
         </div>
         
+        <div className={`mt-6 transition-all duration-1000 delay-300 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <p className="text-lg md:text-xl text-white/60 tracking-widest uppercase">Developer & Creator</p>
+        </div>
 
       </div>
       
