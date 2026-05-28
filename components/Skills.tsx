@@ -29,17 +29,9 @@ function SkillBar({ skill, index, isVisible }: { skill: typeof skills[0]; index:
     }
   }, [isVisible, skill.level, index])
 
-  const handleEnter = () => {
-    if (!barRef.current) return
-    const rect = barRef.current.getBoundingClientRect()
-    skillsMouseState.hoverBarY = rect.top + rect.height / 2
-    skillsMouseState.burstRequest += 1
-  }
-
   return (
     <div
       ref={barRef}
-      onMouseEnter={handleEnter}
       className={`group transition-all duration-600 ease-out-expo pointer-events-auto ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
