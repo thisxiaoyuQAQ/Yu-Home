@@ -99,11 +99,11 @@ export default function Projects() {
   const { ref: gridRef, isIntersecting: gridVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.1 })
 
   return (
-    <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
-      <ProjectsParticles className="absolute inset-0 z-0 opacity-70" />
+    <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden">
+      <ProjectsParticles className="absolute inset-0 z-0" />
       <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-transparent z-[1] pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-[2]" />
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0a0010] to-transparent pointer-events-none z-[2]" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0010] to-transparent pointer-events-none z-[2]" />
       
       <div className="max-w-6xl w-full relative z-10">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">

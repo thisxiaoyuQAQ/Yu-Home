@@ -79,15 +79,15 @@ export default function Skills() {
         containerRef.current = el
       }}
       id="skills" 
-      className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden"
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <SkillsParticles className="absolute inset-0 w-full h-full opacity-70 z-0" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-transparent to-black/30 pointer-events-none z-[1]" />
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-black to-transparent pointer-events-none z-[2]" />
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-transparent to-[#0a0010]/30 pointer-events-none z-[1]" />
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0a0010] to-transparent pointer-events-none z-[2]" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0010] to-transparent pointer-events-none z-[2]" />
       
       <div className="max-w-4xl w-full relative z-10 pointer-events-none">
         <div ref={titleRef} className="flex items-center gap-4 mb-16">

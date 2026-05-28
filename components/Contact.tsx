@@ -17,9 +17,9 @@ export default function Contact() {
   const { ref: linksRef, isIntersecting: linksVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.2 })
 
   return (
-    <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
+    <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden">
       <ContactParticles />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-gray-900/30 via-black to-black pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-gray-900/30 via-[#0a0010] to-[#0a0010] pointer-events-none" />
       
       <div className="max-w-4xl w-full text-center relative z-10">
         <div ref={titleRef}>
