@@ -164,15 +164,6 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         >
           {text}
         </h1>
-
-        <div
-          className="absolute -inset-4 pointer-events-none"
-          style={{
-            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-            animation: 'shimmer 3s ease-in-out infinite',
-            transform: 'skewX(-20deg)',
-          }}
-        />
       </div>
 
       <style jsx>{`
