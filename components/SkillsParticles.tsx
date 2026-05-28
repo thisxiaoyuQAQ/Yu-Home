@@ -87,13 +87,15 @@ const VERT = /* glsl */ `
 
     vec3 transformed = vec3(x, y, z) + wobble;
 
-    // 7) coloring: purple → amber along the axis, hot cyan-white on high energy
+    // 7) coloring: purple → amber along the axis, matching Hero's palette.
+    //    No cyan tint; high-energy regions only get a small warm white lift so
+    //    the look stays in Hero's amber↔purple family.
     vec3 amber  = vec3(255.0, 170.0, 60.0)  / 255.0;
     vec3 purple = vec3(110.0,  60.0, 230.0) / 255.0;
     vec3 base   = mix(purple, amber, t);
-    vec3 hot    = vec3(0.75, 0.95, 1.0);
-    float energy = env * 0.6 + prox;
-    vColor = mix(base, hot, clamp(energy * 0.55, 0.0, 0.85)) * (1.35 + env * 0.6);
+    vec3 warmWhite = vec3(1.0, 0.92, 0.78);
+    float energy = env * 0.5 + prox * 0.8;
+    vColor = mix(base, warmWhite, clamp(energy * 0.25, 0.0, 0.45)) * (1.05 + env * 0.25);
 
     vAlpha = 0.65 + env * 0.55 + prox * 0.35;
 
