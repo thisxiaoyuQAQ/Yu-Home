@@ -49,7 +49,7 @@ Yu-Home/
 │   ├── Skills.tsx          # 技能展示
 │   ├── Projects.tsx        # 项目作品
 │   ├── Contact.tsx         # 联系方式
-│   └── ParticleCanvas.tsx  # Three.js 粒子画布
+│   └── HeroParticles.tsx  # Three.js 粒子画布
 ├── lib/                    # 工具库
 │   ├── hooks/
 │   │   └── useIntersectionObserver.ts

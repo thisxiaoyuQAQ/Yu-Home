@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import FluidText from './FluidText'
 
-const ParticleCanvas = dynamic(() => import('./ParticleCanvas'), {
+const HeroParticles = dynamic(() => import('./HeroParticles'), {
   ssr: false,
   loading: () => <div className="absolute inset-0 bg-black" />
 })
@@ -19,7 +19,7 @@ export default function Hero() {
   return (
     <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-black">
       <div className="absolute inset-0">
-        <ParticleCanvas className="w-full h-full" />
+        <HeroParticles className="w-full h-full" />
       </div>
       
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black pointer-events-none" />

@@ -15,89 +15,94 @@
 
 ---
 
-## Hero 页面 - 星云粒子系统
+## Hero 页面 - 圆盘星系粒子系统（GPU 驱动）
 
-**文件位置**: `components/ParticleCanvas.tsx`
+**文件位置**: `components/HeroParticles.tsx`
+
+参考 [actium.co.jp](https://actium.co.jp/) 的 first-view 场景。所有粒子运动放在
+顶点着色器里完成，CPU 只更新一个 `time` uniform 和组旋转，因此 75k 点也能稳定 60 FPS。
 
 ### 核心参数
 
 ```typescript
-const NEBULA_PARTICLES = 3000    // 星云粒子数量
-const STAR_PARTICLES = 200       // 背景星星数量
-const MOUSE_RADIUS = 250         // 鼠标影响半径
-const MOUSE_STRENGTH = 3         // 鼠标推力强度
-const RETURN_SPEED = 0.004       // 粒子回归原位速度
-const DAMPING = 0.98             // 速度衰减系数
+const HALO_COUNT = 25000        // 球壳晕星
+const DISK_COUNT = 50000        // 圆盘星
+const INNER_RADIUS = 10         // 圆盘内半径
+const OUTER_RADIUS = 40         // 圆盘外半径
+const DISK_HEIGHT = 2           // 圆盘纵向厚度（薄盘是关键）
+const HALO_RADIUS = 10          // 晕星壳半径
+const MOUSE_PARALLAX = 0.18     // 鼠标视差倾斜量
 ```
 
-### 星云粒子分布
+### 粒子分布
 
 ```typescript
-// 球形分布 + 螺旋变形
+// 1) 晕星：球面均匀分布在 r≈HALO_RADIUS 的薄壳上
+new THREE.Vector3(rand, rand, rand).normalize()
+  .multiplyScalar(Math.random() * 0.5 + HALO_RADIUS)
+
+// 2) 圆盘：圆柱坐标 + 平方根半径采样（让外圈密度更高）
+const rand = Math.pow(Math.random(), 1.5)
+const radius = Math.sqrt(R*R*rand + (1-rand)*r*r)  // r=10, R=40
 const theta = Math.random() * Math.PI * 2
-const phi = Math.acos(2 * Math.random() - 1)
-const r = Math.pow(Math.random(), 0.4) * 600  // 半径范围
-
-// 螺旋偏移
-const spiralOffset = theta + r * 0.008
-
-// 三轴缩放比例
-const x = r * Math.sin(phi) * Math.cos(spiralOffset) * 1.5  // X轴拉伸1.5倍
-const y = r * Math.sin(phi) * Math.sin(spiralOffset) * 0.8  // Y轴压缩0.8倍
-const z = r * Math.cos(phi) * 0.6                           // Z轴压缩0.6倍
+const y = (Math.random() - 0.5) * DISK_HEIGHT      // 极薄
 ```
 
-### 颜色配置
-
-```typescript
-// 星云颜色调色板（RGB 归一化值）
-const colorPalette = [
-  [0.4, 0.2, 0.8],   // 紫色
-  [0.2, 0.4, 0.9],   // 蓝色
-  [0.6, 0.3, 0.7],   // 淡紫色
-  [0.3, 0.5, 0.9],   // 亮蓝色
-  [0.5, 0.2, 0.6],   // 深紫色
-  [0.2, 0.3, 0.8],   // 深蓝色
-]
-
-// 颜色变化范围
-const variation = 0.8 + Math.random() * 0.4  // 0.8-1.2
-```
-
-### Shader 效果
+### 每粒子 shift 属性（GPU 动画核心）
 
 ```glsl
-// 顶点着色器 - 脉冲大小
-float pulse = 1.0 + sin(uTime * 0.3 + position.x * 0.005 + position.y * 0.005) * 0.15;
-// 0.3 = 脉冲频率
-// 0.005 = 位置影响因子
-// 0.15 = 脉冲幅度
+// 每粒子 4 个 float：(phaseA, phaseB, frequency, amplitude)
+attribute vec4 shift;
 
-// 片段着色器 - 发光效果
-float glow = exp(-dist * 2.5) * 0.9;   // 中心发光强度
-float soft = smoothstep(0.5, 0.0, dist) * 0.4;  // 边缘柔化
+// 顶点着色器中每帧重新计算位移
+float moveT = mod(shift.x + shift.z * time, PI2);
+float moveS = mod(shift.y + shift.z * time, PI2);
+transformed += vec3(
+  cos(moveS) * sin(moveT),
+  cos(moveT),
+  sin(moveS) * sin(moveT)
+) * shift.a;
 ```
 
-### 动画参数
+每颗星在自己的小球面上独立游走，频率和振幅都不同——这是星云"沸腾感"的来源。
 
-```typescript
-// 轨道运动
-const orbitSpeed = 0.02 * speed  // 基础轨道速度
+### 颜色（暖核 → 冷边）
 
-// 摆动效果
-const wobbleX = Math.sin(time * 0.1 * speed + phase) * 30
-const wobbleY = Math.cos(time * 0.08 * speed + phase * 1.3) * 25
-const wobbleZ = Math.sin(time * 0.06 + phaseZ) * 15
-
-// 整体旋转
-groupRef.current.rotation.y = time * 0.01   // Y轴旋转
-groupRef.current.rotation.x = Math.sin(time * 0.05) * 0.05  // X轴摇摆
+```glsl
+float d = length(abs(position) / vec3(40.0, 10.0, 40.0));
+d = clamp(d, 0.0, 1.0);
+vec3 core = vec3(255.0, 170.0, 60.0) / 255.0;   // 琥珀
+vec3 rim  = vec3(110.0, 60.0, 230.0) / 255.0;   // 深紫
+vColor = mix(core, rim, d);
 ```
 
-### 相机位置
+### 片段（柔光圆点）
+
+```glsl
+float d = length(gl_PointCoord.xy - 0.5);
+if (d > 0.5) discard;
+diffuseColor = vec4(vColor, smoothstep(0.5, 0.2, d) * 0.55 + 0.45);
+```
+
+`smoothstep(0.5, 0.2, d) * 0.55 + 0.45` 给每颗星一个"中心平台 + 边缘柔光"的形状，
+配合 `AdditiveBlending` 在核心叠加出过曝高光。
+
+### 动画与交互
 
 ```typescript
-camera={{ position: [0, 0, 500], fov: 75 }}
+// 极慢的 Y 自转 + 固定 Z 倾角
+groupRef.current.rotation.y = t * 0.04
+// 鼠标视差（平滑跟随）
+groupRef.current.rotation.x += (mouseY * 0.18 - rot.x) * 0.04
+groupRef.current.rotation.z += (0.2 + mouseX * 0.09 - rot.z) * 0.04
+```
+
+### 相机位置与背景
+
+```typescript
+camera={{ position: [0, 4, 22], fov: 60 }}
+// 背景使用深紫黑（不是纯黑），让暖色核心更通透
+background: '#0a0010'
 ```
 
 ---
@@ -589,7 +594,7 @@ camera={{ position: [0, 0, 400], fov: 75 }}
 
 | 页面 | 文件 | 粒子数 | 特效类型 |
 |------|------|--------|----------|
-| Hero | ParticleCanvas.tsx | 3000+200 | 星云 + 背景星星 + 鼠标排斥 |
+| Hero | HeroParticles.tsx | 25000+50000 | 圆盘星系 + 晕星 + GPU 顶点动画 + 鼠标视差 |
 | About | AboutParticles.tsx | 500 | 气泡上升 + 呼吸效果 |
 | Skills | SkillsParticles.tsx | 4000 | 数据流 + 鼠标推动 |
 | Projects | ProjectsParticles.tsx | 1000 | 螺旋旋转 + 连线 |
