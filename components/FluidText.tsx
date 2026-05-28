@@ -1,32 +1,65 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface FluidTextProps {
   text: string
   className?: string
 }
 
+// Hover transitions are hand-driven (rAF + critical-damping) because the
+// thing that actually morphs the text — <feDisplacementMap scale> — isn't
+// CSS-transitionable. Toggling it with React state was the source of the
+// snap you saw on enter/leave.
+const REST_SCALE = 12
+const HOVER_SCALE = 28
+const SMOOTHING = 0.12   // 0 = frozen, 1 = instant
+
 export default function FluidText({ text, className = '' }: FluidTextProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 })
-  const [isHovered, setIsHovered] = useState(false)
+  const displaceRef = useRef<SVGFEDisplacementMapElement>(null)
+  const mainTextRef = useRef<HTMLHeadingElement>(null)
+  const targetScaleRef = useRef(REST_SCALE)
+  const currentScaleRef = useRef(REST_SCALE)
+  const rafRef = useRef<number | null>(null)
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const x = (e.clientX - rect.left) / rect.width
-    const y = (e.clientY - rect.top) / rect.height
-    setMousePos({ x, y })
+  // Single rAF loop that eases the displacement scale toward its target.
+  useEffect(() => {
+    const tick = () => {
+      const next =
+        currentScaleRef.current +
+        (targetScaleRef.current - currentScaleRef.current) * SMOOTHING
+      currentScaleRef.current = next
+      if (displaceRef.current) {
+        displaceRef.current.setAttribute('scale', next.toFixed(3))
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+    }
+  }, [])
+
+  const handleEnter = () => {
+    targetScaleRef.current = HOVER_SCALE
+    if (mainTextRef.current) {
+      mainTextRef.current.style.letterSpacing = '0.18em'
+    }
+  }
+  const handleLeave = () => {
+    targetScaleRef.current = REST_SCALE
+    if (mainTextRef.current) {
+      mainTextRef.current.style.letterSpacing = '0.15em'
+    }
   }
 
   return (
     <div
       ref={containerRef}
       className={`relative ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
       style={{ cursor: 'default' }}
     >
       <svg className="absolute w-0 h-0">
@@ -47,9 +80,10 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
               />
             </feTurbulence>
             <feDisplacementMap
+              ref={displaceRef}
               in="SourceGraphic"
               in2="noise"
-              scale={isHovered ? 25 : 12}
+              scale={REST_SCALE}
               xChannelSelector="R"
               yChannelSelector="G"
             />
@@ -75,7 +109,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         </defs>
       </svg>
 
-      <div 
+      <div
         className="relative"
         style={{
           transform: 'skewX(-6deg)',
@@ -83,6 +117,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         }}
       >
         <h1
+          ref={mainTextRef}
           className="fluid-main text-[9rem] md:text-[12rem] lg:text-[16rem] font-black tracking-[0.15em] select-none italic"
           style={{
             filter: 'url(#fluid-filter)',
@@ -92,7 +127,7 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
             animation: 'hue-rotate 6s linear infinite',
-            transition: 'filter 0.3s ease',
+            transition: 'letter-spacing 700ms cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
           {text}
@@ -129,8 +164,6 @@ export default function FluidText({ text, className = '' }: FluidTextProps) {
         >
           {text}
         </h1>
-
-
 
         <div
           className="absolute -inset-4 pointer-events-none"
