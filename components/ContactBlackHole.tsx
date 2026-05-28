@@ -1,8 +1,12 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
 
 // Contact black hole — modeled directly on HeroParticles.
 // Same idea: a single GPU points cloud where the disk geometry itself draws
@@ -32,24 +36,6 @@ const DISK_HEIGHT = 1.6
 const REST_PITCH = -Math.PI / 2  // X: tip disk up so its plane faces camera
 const REST_YAW = 0
 const REST_ROLL = 0
-
-// Orbiting text ring — labels arrayed around the disk rim, co-rotating with it.
-const ORBIT_TEXT = [
-  'CONTACT',
-  'EMAIL',
-  'GITHUB',
-  'WECHAT',
-  'STARLEAP',
-  'XIAOYU',
-  'GET IN TOUCH',
-  'SAY HELLO',
-  'COLLABORATE',
-  'CREATE',
-  'DESIGN',
-  'CODE',
-]
-const TEXT_RADIUS = 82      // where the text ring sits (inside outer rim)
-const TEXT_SIZE = 4.2
 
 // Lightning system — auto-burst every 1s: fires 1–5 bolts in sequence,
 // each separated by 0.1s. If the cursor is over the canvas, every bolt
@@ -88,25 +74,14 @@ const VERTEX_SHADER = /* glsl */ `
 
     vec3 transformed = position + wobble;
 
-    // Color by normalized cylindrical distance — multi-stop nebula gradient
-    // anchored to Hero's amber-core / deep-purple-rim palette, with a hot
-    // magenta midband and a cool cyan/violet halo for extra vibrancy. Reads
-    // as one continuous palette family with HeroParticles.
+    // Color by normalized cylindrical distance — matches HeroParticles'
+    // two-stop palette exactly so the contact scene reads as the same galaxy:
+    // warm amber core → deep purple rim. No midbands, no extra hues.
     float d = length(abs(position) / vec3(110.0, 14.0, 110.0));
     d = clamp(d, 0.0, 1.0);
-    vec3 amber   = vec3(255.0, 190.0,  60.0) / 255.0;  // hot inner ring (Hero core)
-    vec3 magenta = vec3(255.0,  80.0, 160.0) / 255.0;  // saturated midband
-    vec3 purple  = vec3(140.0,  70.0, 240.0) / 255.0;  // Hero rim
-    vec3 cyan    = vec3( 90.0, 200.0, 255.0) / 255.0;  // cool outer halo
-    vec3 col;
-    if (d < 0.33) {
-      col = mix(amber, magenta, d / 0.33);
-    } else if (d < 0.7) {
-      col = mix(magenta, purple, (d - 0.33) / 0.37);
-    } else {
-      col = mix(purple, cyan, (d - 0.7) / 0.3);
-    }
-    vColor = col;
+    vec3 core = vec3(255.0, 170.0, 60.0)  / 255.0; // amber (Hero)
+    vec3 rim  = vec3(110.0, 60.0, 230.0)  / 255.0; // deep purple (Hero)
+    vColor = mix(core, rim, d);
 
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mvPosition;
@@ -121,11 +96,10 @@ const FRAGMENT_SHADER = /* glsl */ `
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
-    // Slightly higher core alpha + a soft color boost so the saturated
-    // magentas and cyans stay vivid under additive blending.
-    float alpha = smoothstep(0.5, 0.0, d) * 0.45 + 0.18;
-    vec3 boosted = vColor * 1.15;
-    gl_FragColor = vec4(boosted, alpha);
+    // Same alpha curve as Hero — soft falloff, no color boost. Bloom does
+    // the heavy lifting downstream so the points themselves stay restrained.
+    float alpha = smoothstep(0.5, 0.0, d) * 0.35 + 0.15;
+    gl_FragColor = vec4(vColor, alpha);
   }
 `
 
@@ -326,8 +300,8 @@ function GalaxyPoints() {
 
     const startVert = bolt.vertexStart
     const endVert = bolt.vertexStart + data.segmentsPerBolt * 2
-    const cyan = new THREE.Color(0x6fd6ff)    // brighter electric cyan
-    const violet = new THREE.Color(0xff5cc8)   // hot magenta tip — matches disk midband
+    const cyan = new THREE.Color(0xffb53c)    // amber root — matches disk core
+    const violet = new THREE.Color(0x9d6cff)  // purple tip — matches disk rim
     for (let v = startVert; v < endVert; v++) {
       const t = (v - startVert) / (endVert - startVert)
       const c = new THREE.Color().lerpColors(cyan, violet, t)
@@ -421,67 +395,6 @@ function GalaxyPoints() {
     ;(data.lineGeo.attributes.aAlpha as THREE.BufferAttribute).needsUpdate = true
   })
 
-  // Build label planes once. Each label is a CanvasTexture (self-contained, no
-  // external font fetch — drei <Text> sometimes flashes then disappears when
-  // the CDN-hosted Roboto SDF fails to load), painted onto a transparent
-  // PlaneGeometry. Planes sit in disk-local XZ plane, tangent to the orbit.
-  const labelMeshes = useMemo(() => {
-    const items: { texture: THREE.CanvasTexture; geometry: THREE.PlaneGeometry; material: THREE.MeshBasicMaterial; position: [number, number, number]; rotation: [number, number, number]; key: string }[] = []
-    const CANVAS_W = 512
-    const CANVAS_H = 128
-    const planeWorldHeight = TEXT_SIZE * 1.6
-    const planeWorldWidth = planeWorldHeight * (CANVAS_W / CANVAS_H)
-    for (let i = 0; i < ORBIT_TEXT.length; i++) {
-      const label = ORBIT_TEXT[i]
-      const angle = (i / ORBIT_TEXT.length) * Math.PI * 2
-      const x = Math.cos(angle) * TEXT_RADIUS
-      const z = Math.sin(angle) * TEXT_RADIUS
-
-      const cv = document.createElement('canvas')
-      cv.width = CANVAS_W
-      cv.height = CANVAS_H
-      const ctx = cv.getContext('2d')!
-      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H)
-      ctx.font = 'bold 72px system-ui, -apple-system, "Segoe UI", sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = '#f0e0ff'
-      ctx.shadowColor = '#0a0010'
-      ctx.shadowBlur = 12
-      ctx.fillText(label, CANVAS_W / 2, CANVAS_H / 2)
-      // Second pass — sharpen edges
-      ctx.shadowBlur = 0
-      ctx.fillText(label, CANVAS_W / 2, CANVAS_H / 2)
-
-      const texture = new THREE.CanvasTexture(cv)
-      texture.anisotropy = 8
-      texture.minFilter = THREE.LinearMipmapLinearFilter
-      texture.magFilter = THREE.LinearFilter
-      texture.needsUpdate = true
-
-      const geometry = new THREE.PlaneGeometry(planeWorldWidth, planeWorldHeight)
-      const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        depthWrite: false,
-        depthTest: false,
-        side: THREE.DoubleSide,
-      })
-
-      items.push({
-        texture,
-        geometry,
-        material,
-        position: [x, 0, z],
-        // PlaneGeometry lies in XY facing +Z. Lay it flat in XZ (face +Y) and
-        // rotate around its new normal so the baseline runs tangent.
-        rotation: [-Math.PI / 2, 0, -angle - Math.PI / 2],
-        key: label + i,
-      })
-    }
-    return items
-  }, [])
-
   return (
     <>
       {/* Lightning lives in world space — bolts are computed in world coords
@@ -491,20 +404,132 @@ function GalaxyPoints() {
       <group rotation={[REST_PITCH, REST_YAW, REST_ROLL]}>
         <group ref={groupRef}>
           <points geometry={data.geometry} material={data.material} />
-          {labelMeshes.map((m) => (
-            <mesh
-              key={m.key}
-              geometry={m.geometry}
-              material={m.material}
-              position={m.position}
-              rotation={m.rotation}
-              renderOrder={3}
-            />
-          ))}
         </group>
       </group>
     </>
   )
+}
+
+// Custom shader: radial gravitational lens + chromatic aberration.
+// Pulls the rendered image toward a virtual event horizon at screen center,
+// darkens the core, and splits R/G/B channels along the warp direction so
+// the rim shimmers. This is what gives the scene "black hole feel" instead
+// of just being a glowing donut.
+const LENS_SHADER = {
+  uniforms: {
+    tDiffuse: { value: null as THREE.Texture | null },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uCenter: { value: new THREE.Vector2(0.5, 0.5) },
+    uHoleRadius: { value: 0.06 },     // dark core size (NDC-ish)
+    uLensStrength: { value: 0.35 },   // how much UVs bend toward center
+    uAberration: { value: 0.0 },      // disabled — rainbow split clashes with Hero's clean palette
+    uDarkness: { value: 0.92 },       // how black the event horizon is
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform vec2 uResolution;
+    uniform vec2 uCenter;
+    uniform float uHoleRadius;
+    uniform float uLensStrength;
+    uniform float uAberration;
+    uniform float uDarkness;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 aspect = vec2(uResolution.x / uResolution.y, 1.0);
+      vec2 dir = (vUv - uCenter) * aspect;
+      float dist = length(dir);
+      vec2 ndir = dir / max(dist, 1e-5);
+
+      // Lens warp: pull UVs toward center, strongest near event horizon,
+      // falling off with 1/r so distant stars are barely affected.
+      float lens = uLensStrength / (dist + 0.15);
+      vec2 warpUv = vUv - (ndir / aspect) * lens * 0.02;
+
+      // Chromatic aberration along the radial direction — color separation
+      // increases near the rim of the disk.
+      float ab = uAberration * smoothstep(0.0, 0.4, dist) * (1.0 - smoothstep(0.45, 0.8, dist));
+      vec2 abShift = (ndir / aspect) * ab;
+
+      float r = texture2D(tDiffuse, warpUv + abShift).r;
+      float g = texture2D(tDiffuse, warpUv).g;
+      float b = texture2D(tDiffuse, warpUv - abShift).b;
+      vec3 col = vec3(r, g, b);
+
+      // Event horizon: smooth black disc at the center with a thin photon
+      // ring lift on the boundary so the void doesn't look like a flat hole.
+      float horizon = smoothstep(uHoleRadius + 0.015, uHoleRadius - 0.005, dist);
+      float photonRing = smoothstep(uHoleRadius + 0.025, uHoleRadius + 0.005, dist) -
+                         smoothstep(uHoleRadius + 0.005, uHoleRadius - 0.005, dist);
+      col = mix(col, vec3(0.0), horizon * uDarkness);
+      col += vec3(1.0, 0.75, 0.45) * photonRing * 0.55;
+
+      // Subtle outer vignette to deepen the void of space.
+      float vig = smoothstep(0.95, 0.4, dist);
+      col *= mix(0.65, 1.0, vig);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+}
+
+function PostFX() {
+  const { gl, scene, camera, size } = useThree()
+  const composerRef = useRef<EffectComposer | null>(null)
+  const lensRef = useRef<ShaderPass | null>(null)
+  const bloomRef = useRef<UnrealBloomPass | null>(null)
+
+  useEffect(() => {
+    const composer = new EffectComposer(gl)
+    composer.addPass(new RenderPass(scene, camera))
+
+    // Bloom — restrained glow that matches Hero's soft luminance. Lower
+    // strength + higher threshold so only the bright core blooms, not every
+    // mid-tone particle.
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(size.width, size.height),
+      0.65,  // strength
+      0.55,  // radius
+      0.45,  // threshold — only the hot core lifts into glow
+    )
+    composer.addPass(bloom)
+
+    const lens = new ShaderPass(LENS_SHADER)
+    lens.uniforms.uResolution.value.set(size.width, size.height)
+    composer.addPass(lens)
+
+    composer.setSize(size.width, size.height)
+    composerRef.current = composer
+    lensRef.current = lens
+    bloomRef.current = bloom
+
+    return () => {
+      composer.dispose()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gl, scene, camera])
+
+  useEffect(() => {
+    if (!composerRef.current || !lensRef.current || !bloomRef.current) return
+    composerRef.current.setSize(size.width, size.height)
+    lensRef.current.uniforms.uResolution.value.set(size.width, size.height)
+    bloomRef.current.resolution.set(size.width, size.height)
+  }, [size.width, size.height])
+
+  // Take over the render loop. Priority 1 ensures we run after R3F's default
+  // scene updates but before any other post-processing in the tree.
+  useFrame(() => {
+    composerRef.current?.render()
+  }, 1)
+
+  return null
 }
 
 export default function ContactBlackHole({ className }: { className?: string }) {
@@ -524,7 +549,7 @@ export default function ContactBlackHole({ className }: { className?: string }) 
   return (
     <div
       className={className}
-      style={{ width: '100%', height: '100%', background: '#0a0010' }}
+      style={{ width: '100%', height: '100%', background: '#000000' }}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
@@ -533,8 +558,9 @@ export default function ContactBlackHole({ className }: { className?: string }) 
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
       >
-        <color attach="background" args={['#0a0010']} />
+        <color attach="background" args={['#000000']} />
         <GalaxyPoints />
+        <PostFX />
       </Canvas>
     </div>
   )

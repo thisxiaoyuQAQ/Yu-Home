@@ -17,12 +17,12 @@ export default function Contact() {
   const { ref: linksRef, isIntersecting: linksVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.2 })
 
   return (
-    <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden">
+    <section id="contact" className="min-h-screen flex items-center justify-center px-6 py-32 bg-black relative overflow-hidden">
       <div className="absolute inset-0 z-0">
         <ContactBlackHole />
       </div>
       {/* Soft bottom vignette — keeps the footer line legible without dimming the disk rim */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-transparent via-transparent to-[#0a0010] pointer-events-none z-[5]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,_var(--tw-gradient-stops))] from-transparent via-transparent to-black pointer-events-none z-[5]" />
       
       <div className="max-w-4xl w-full text-center relative z-10">
         <div ref={titleRef}>
