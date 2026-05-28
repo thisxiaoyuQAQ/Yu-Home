@@ -17,6 +17,13 @@ const MAX_LINKS = isMobile ? 900 : 2200
 const LINK_DIST = isMobile ? 80 : 115
 const LINK_DIST_SQ = LINK_DIST * LINK_DIST
 
+// Backdrop dust layer — Hero-style ambient stars, sits behind neural network.
+const DUST_COUNT = isMobile ? 1200 : 3000
+const DUST_SPREAD_X = 3200
+const DUST_SPREAD_Y = 2000
+const DUST_Z_MIN = -600
+const DUST_Z_MAX = -180
+
 const SPREAD_X = 2400
 const SPREAD_Y = 1400
 const SPREAD_Z = 200
@@ -175,6 +182,123 @@ const LINE_FRAGMENT_SHADER = /* glsl */ `
     gl_FragColor = vec4(vColor * (1.0 + pulse * 0.7 + vMouseProx * 0.4), a);
   }
 `
+
+const DUST_VERTEX_SHADER = /* glsl */ `
+  uniform float uTime;
+  uniform float uPixelRatio;
+  uniform float uSize;
+  uniform float uSpreadY;
+
+  attribute float aSize;
+  attribute vec4  aShift;  // (phaseA, phaseB, frequency, amplitude) — Hero-style
+
+  varying vec3  vColor;
+  varying float vAlpha;
+
+  const float PI2 = 6.2831853;
+
+  void main() {
+    // Hero-style per-particle wobble — independent tiny sphere walk.
+    float moveT = mod(aShift.x + aShift.z * uTime, PI2);
+    float moveS = mod(aShift.y + aShift.z * uTime, PI2);
+    vec3 wobble = vec3(
+      cos(moveS) * sin(moveT),
+      cos(moveT),
+      sin(moveS) * sin(moveT)
+    ) * aShift.w * 3.0;
+
+    vec3 transformed = position + wobble;
+
+    // Same amber↔purple Y-gradient as Hero.
+    float t = clamp((transformed.y + uSpreadY * 0.5) / uSpreadY, 0.0, 1.0);
+    vec3 amber  = vec3(1.0, 0.667, 0.235);
+    vec3 purple = vec3(0.431, 0.235, 0.902);
+    vColor = mix(purple, amber, t);
+
+    // Twinkle: slow alpha oscillation per-particle so the field shimmers.
+    float twinkle = 0.55 + 0.45 * sin(uTime * 0.9 + aShift.y);
+    vAlpha = twinkle * 0.55;
+
+    vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = uSize * aSize * uPixelRatio * (110.0 / -mvPosition.z);
+  }
+`
+
+const DUST_FRAGMENT_SHADER = /* glsl */ `
+  precision highp float;
+  varying vec3  vColor;
+  varying float vAlpha;
+
+  void main() {
+    float d = length(gl_PointCoord.xy - 0.5);
+    if (d > 0.5) discard;
+    // Sharp star with crisp falloff (matches Hero's particle look).
+    float a = smoothstep(0.5, 0.0, d) * 0.35 * vAlpha + 0.10 * vAlpha;
+    gl_FragColor = vec4(vColor, a);
+  }
+`
+
+function StarDust() {
+  const { gl } = useThree()
+  const matRef = useRef<THREE.ShaderMaterial | null>(null)
+  const groupRef = useRef<THREE.Group>(null)
+
+  const { geometry, material } = useMemo(() => {
+    const positions = new Float32Array(DUST_COUNT * 3)
+    const sizes = new Float32Array(DUST_COUNT)
+    const shift = new Float32Array(DUST_COUNT * 4)
+
+    for (let i = 0; i < DUST_COUNT; i++) {
+      positions[i * 3]     = (Math.random() - 0.5) * DUST_SPREAD_X
+      positions[i * 3 + 1] = (Math.random() - 0.5) * DUST_SPREAD_Y
+      positions[i * 3 + 2] = DUST_Z_MIN + Math.random() * (DUST_Z_MAX - DUST_Z_MIN)
+
+      sizes[i] = Math.random() * 0.7 + 0.25
+      shift[i * 4]     = Math.random() * Math.PI
+      shift[i * 4 + 1] = Math.random() * Math.PI * 2
+      shift[i * 4 + 2] = (Math.random() * 0.9 + 0.1) * Math.PI * 0.1
+      shift[i * 4 + 3] = Math.random() * 0.9 + 0.1
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
+    geo.setAttribute('aShift', new THREE.BufferAttribute(shift, 4))
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSize: { value: 1.2 },
+        uPixelRatio: { value: gl.getPixelRatio() },
+        uSpreadY: { value: DUST_SPREAD_Y },
+      },
+      vertexShader: DUST_VERTEX_SHADER,
+      fragmentShader: DUST_FRAGMENT_SHADER,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+
+    return { geometry: geo, material: mat }
+  }, [gl])
+
+  matRef.current = material as THREE.ShaderMaterial
+
+  useFrame((_, delta) => {
+    const mat = material as THREE.ShaderMaterial
+    mat.uniforms.uTime.value += delta * Math.PI * 0.5
+    mat.uniforms.uPixelRatio.value = gl.getPixelRatio()
+    // Slow rotation — mirrors Hero galaxy's gentle drift.
+    if (groupRef.current) groupRef.current.rotation.y += delta * 0.01
+  })
+
+  return (
+    <group ref={groupRef}>
+      <points geometry={geometry} material={material} />
+    </group>
+  )
+}
 
 function NeuralNetwork() {
   const { camera, size, gl } = useThree()
@@ -521,6 +645,7 @@ export default function SkillsParticles({ className }: { className?: string }) {
         dpr={[1, 2]}
       >
         <color attach="background" args={['#0a0010']} />
+        <StarDust />
         <NeuralNetwork />
       </Canvas>
     </div>
