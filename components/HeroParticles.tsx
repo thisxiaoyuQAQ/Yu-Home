@@ -13,8 +13,8 @@ import * as THREE from 'three'
 // All motion happens on the GPU via a custom ShaderMaterial. The CPU
 // only ticks one time uniform and the group rotation — cheap at 75k pts.
 
-const HALO_COUNT = 25000
-const DISK_COUNT = 50000
+const HALO_COUNT = 40000
+const DISK_COUNT = 90000
 const TOTAL = HALO_COUNT + DISK_COUNT
 
 const INNER_RADIUS = 10
@@ -58,7 +58,7 @@ const VERTEX_SHADER = /* glsl */ `
     vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     // Perspective-scaled point size.
-    gl_PointSize = uSize * aSize * uPixelRatio * (180.0 / -mvPosition.z);
+    gl_PointSize = uSize * aSize * uPixelRatio * (110.0 / -mvPosition.z);
   }
 `
 
@@ -69,9 +69,9 @@ const FRAGMENT_SHADER = /* glsl */ `
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
-    // Center plateau + soft falloff — gives that "blown highlight" look
-    // once additively blended.
-    float alpha = smoothstep(0.5, 0.2, d) * 0.18 + 0.08;
+    // Sharper falloff so each star reads as a crisp dot rather than a blob,
+    // since density is now high enough to carry the glow by accumulation.
+    float alpha = smoothstep(0.5, 0.0, d) * 0.35 + 0.15;
     gl_FragColor = vec4(vColor, alpha);
   }
 `
@@ -99,7 +99,7 @@ function GalaxyPoints() {
       positions[i * 3 + 1] = tmp.y
       positions[i * 3 + 2] = tmp.z
 
-      sizes[i] = Math.random() * 1.5 + 0.5
+      sizes[i] = Math.random() * 0.7 + 0.25
       shift[i * 4]     = Math.random() * Math.PI
       shift[i * 4 + 1] = Math.random() * Math.PI * 2
       shift[i * 4 + 2] = (Math.random() * 0.9 + 0.1) * Math.PI * 0.1
@@ -123,7 +123,7 @@ function GalaxyPoints() {
       positions[idx * 3 + 1] = y
       positions[idx * 3 + 2] = z
 
-      sizes[idx] = Math.random() * 1.5 + 0.5
+      sizes[idx] = Math.random() * 0.7 + 0.25
       shift[idx * 4]     = Math.random() * Math.PI
       shift[idx * 4 + 1] = Math.random() * Math.PI * 2
       shift[idx * 4 + 2] = (Math.random() * 0.9 + 0.1) * Math.PI * 0.1
