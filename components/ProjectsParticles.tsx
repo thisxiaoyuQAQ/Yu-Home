@@ -1,102 +1,33 @@
 'use client'
 
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 
-// Full-page nebula field for the Projects section:
-//  - 3 LARGE nebula clouds with bigger, brighter particles forming the
-//    composition's hero shapes
-//  - ~24 SMALL nebula clusters scattered across the whole viewport,
-//    filling negative space with secondary detail
-//  - A dense halo of drifting dust for atmospheric continuity
-//  - All clouds share the Hero color family (purple / magenta / amber / cyan)
+// Orbital System — a central star with orbiting particle rings and comets.
 //
-// Total ~250k particles. Curl-noise flow shreds cluster edges into
-// filaments; group rotation + cursor push add cinematic motion.
+// Concept: Projects are celestial bodies orbiting a shared core.
+//   - Central pulsing star (small, bright)
+//   - Multiple elliptical orbit rings made of flowing particles
+//   - Each ring has different speed, tilt, eccentricity
+//   - Comet-like bright heads with trailing tails on some orbits
+//   - Asteroid belt: dense ring of tiny particles
+//   - Mouse interaction: gravitational lens distortion near cursor
+//
+// Palette: same amber/purple family as the rest of the site.
+// All motion in vertex shader for GPU efficiency (~80k particles).
 
-const LARGE_PARTICLES = 36000     // particles per large nebula
-const SMALL_PARTICLES = 4500      // particles per small nebula
-const HALO_PARTICLES = 40000      // background dust
-
-type ColorPair = {
-  core: [number, number, number]  // hot, bright center color
-  edge: [number, number, number]  // cooler, darker rim color
-}
-
-type ClusterDef = {
-  x: number; y: number; z: number
-  r: number
-  palette: ColorPair
-  large: number // 1 for large hero nebula, 0 for small accent
-}
-
-// A small, deliberate palette in the Hero color family — only 3 pairs.
-// Each pair fades from a hot core to a cool rim, giving every cloud
-// internal gradient depth without introducing new hues.
-const PALETTE_AMBER:  ColorPair = { core: [255, 180,  90], edge: [180,  70, 200] }  // amber → magenta
-const PALETTE_PURPLE: ColorPair = { core: [200, 130, 255], edge: [ 70,  40, 140] }  // bright violet → deep purple
-const PALETTE_MAGENTA:ColorPair = { core: [230, 110, 200], edge: [ 90,  50, 180] }  // hot pink → indigo
-
-// Three hero nebulae spread across the page — they anchor the eye.
-const LARGE_CLUSTERS: ClusterDef[] = [
-  { x: -70, y:  15, z:  -5, r: 32, palette: PALETTE_PURPLE,  large: 1 }, // upper-left
-  { x:  60, y: -10, z:   8, r: 36, palette: PALETTE_MAGENTA, large: 1 }, // mid-right
-  { x:   5, y:  30, z: -15, r: 28, palette: PALETTE_AMBER,   large: 1 }, // upper-center
-]
-
-// Procedurally place ~24 small clusters across the full page.
-// Small clusters reuse the same 3 palettes — no new colors introduced.
-const SMALL_CLUSTERS: ClusterDef[] = (() => {
-  const palettes: ColorPair[] = [PALETTE_PURPLE, PALETTE_MAGENTA, PALETTE_AMBER]
-  const out: ClusterDef[] = []
-  // 6 cols x 4 rows = 24 cells across the ±140 / ±60 working area
-  const cols = 6
-  const rows = 4
-  const spanX = 280
-  const spanY = 110
-  // Deterministic PRNG so the layout is stable across renders.
-  let s = 1
-  const rand = () => {
-    s = (s * 9301 + 49297) % 233280
-    return s / 233280
-  }
-  for (let ix = 0; ix < cols; ix++) {
-    for (let iy = 0; iy < rows; iy++) {
-      const cx = -spanX / 2 + (ix + 0.5) * (spanX / cols) + (rand() - 0.5) * 30
-      const cy = -spanY / 2 + (iy + 0.5) * (spanY / rows) + (rand() - 0.5) * 18
-      const cz = (rand() - 0.5) * 40
-      // Skip cells that overlap the large-cluster centers too much,
-      // so the heroes stay legible.
-      let skip = false
-      for (const big of LARGE_CLUSTERS) {
-        const dx = cx - big.x
-        const dy = cy - big.y
-        if (Math.hypot(dx, dy) < big.r * 0.7) { skip = true; break }
-      }
-      if (skip) continue
-      const palette = palettes[Math.floor(rand() * palettes.length)]
-      out.push({
-        x: cx, y: cy, z: cz,
-        r: 5 + rand() * 6,
-        palette,
-        large: 0,
-      })
-    }
-  }
-  return out
-})()
-
-const ALL_CLUSTERS = [...LARGE_CLUSTERS, ...SMALL_CLUSTERS]
-
-const TOTAL =
-  LARGE_CLUSTERS.length * LARGE_PARTICLES +
-  SMALL_CLUSTERS.length * SMALL_PARTICLES +
-  HALO_PARTICLES
-
-const HALO_X = 160
-const HALO_Y = 80
-const HALO_Z = 70
+const RING_COUNT = 7
+const PARTICLES_PER_RING = 6000
+const COMET_COUNT = 12
+const COMET_TAIL = 200
+const ASTEROID_BELT = 25000
+const CORE_PARTICLES = 3000
+const TOTAL = RING_COUNT * PARTICLES_PER_RING + COMET_COUNT * COMET_TAIL
+  + ASTEROID_BELT + CORE_PARTICLES
 
 const VERTEX_SHADER = /* glsl */ `
   uniform float uTime;
@@ -106,228 +37,255 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uMouseActive;
 
   attribute float aSize;
-  attribute float aSeed;
+  attribute float aOrbitRadius;
+  attribute float aOrbitSpeed;
+  attribute float aOrbitPhase;
+  attribute float aOrbitTiltX;
+  attribute float aOrbitTiltZ;
+  attribute float aEccentricity;
   attribute vec3  aColor;
-  attribute float aCluster;     // 0 halo, 0.5 small cluster, 1 large cluster
+  attribute float aTrail;       // 0 = normal, 1 = comet head/tail
 
   varying vec3  vColor;
-  varying float vCluster;
-  varying float vNoise;
-
-  // Ashima Arts 3D simplex noise (public domain).
-  vec4 permute(vec4 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
-  vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-
-  float snoise(vec3 v) {
-    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-    vec3 i  = floor(v + dot(v, C.yyy));
-    vec3 x0 = v - i + dot(i, C.xxx);
-    vec3 g = step(x0.yzx, x0.xyz);
-    vec3 l = 1.0 - g;
-    vec3 i1 = min(g.xyz, l.zxy);
-    vec3 i2 = max(g.xyz, l.zxy);
-    vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-    vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-    vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
-    i = mod(i, 289.0);
-    vec4 p = permute(permute(permute(
-              i.z + vec4(0.0, i1.z, i2.z, 1.0))
-            + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-    float n_ = 1.0/7.0;
-    vec3 ns = n_ * D.wyz - D.xzx;
-    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-    vec4 x_ = floor(j * ns.z);
-    vec4 y_ = floor(j - 7.0 * x_);
-    vec4 x = x_ * ns.x + ns.yyyy;
-    vec4 y = y_ * ns.x + ns.yyyy;
-    vec4 h = 1.0 - abs(x) - abs(y);
-    vec4 b0 = vec4(x.xy, y.xy);
-    vec4 b1 = vec4(x.zw, y.zw);
-    vec4 s0 = floor(b0)*2.0 + 1.0;
-    vec4 s1 = floor(b1)*2.0 + 1.0;
-    vec4 sh = -step(h, vec4(0.0));
-    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-    vec3 p0 = vec3(a0.xy, h.x);
-    vec3 p1 = vec3(a0.zw, h.y);
-    vec3 p2 = vec3(a1.xy, h.z);
-    vec3 p3 = vec3(a1.zw, h.w);
-    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
-    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-    m = m * m;
-    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
-  }
-
-  vec3 curlNoise(vec3 p) {
-    const float e = 0.1;
-    float n1 = snoise(vec3(p.x, p.y + e, p.z));
-    float n2 = snoise(vec3(p.x, p.y - e, p.z));
-    float n3 = snoise(vec3(p.x, p.y, p.z + e));
-    float n4 = snoise(vec3(p.x, p.y, p.z - e));
-    float n5 = snoise(vec3(p.x + e, p.y, p.z));
-    float n6 = snoise(vec3(p.x - e, p.y, p.z));
-    float x = (n1 - n2) - (n3 - n4);
-    float y = (n3 - n4) - (n5 - n6);
-    float z = (n5 - n6) - (n1 - n2);
-    return normalize(vec3(x, y, z) + 1e-5);
-  }
+  varying float vAlpha;
+  varying float vTrail;
 
   void main() {
-    float clusterStrength = aCluster;
-    float flowScale = mix(0.010, 0.028, clusterStrength);
-    float flowAmp   = mix(7.0, 14.0, clusterStrength);
+    // Elliptical orbit: r = a(1-e²) / (1 + e·cos(θ))
+    float theta = uTime * aOrbitSpeed + aOrbitPhase;
+    float e = aEccentricity;
+    float r = aOrbitRadius * (1.0 - e * e) / (1.0 + e * cos(theta));
 
-    vec3 sampleP = position * flowScale
-                 + vec3(uTime * 0.04, uTime * 0.025, uTime * 0.03)
-                 + aSeed;
-    vec3 flow = curlNoise(sampleP) * flowAmp;
+    // Position on orbit plane
+    float x = r * cos(theta);
+    float y = 0.0;
+    float z = r * sin(theta);
 
-    // Cursor push — generous radius so it feels like parting the clouds.
-    vec3 mouseWorld = vec3(uMouse.x * 110.0, uMouse.y * 60.0, 0.0);
-    vec3 toMouse = position - mouseWorld;
-    float dist = length(toMouse);
-    float falloff = smoothstep(40.0, 0.0, dist) * uMouseActive;
-    vec3 push = normalize(toMouse + 1e-5) * falloff * 12.0;
+    // Apply orbit tilt (rotation around X and Z axes)
+    float cx = cos(aOrbitTiltX);
+    float sx = sin(aOrbitTiltX);
+    float cz = cos(aOrbitTiltZ);
+    float sz = sin(aOrbitTiltZ);
 
-    vec3 transformed = position + flow + push;
+    // Rotate around X
+    float y1 = y * cx - z * sx;
+    float z1 = y * sx + z * cx;
+    // Rotate around Z
+    float x2 = x * cz - y1 * sz;
+    float y2 = x * sz + y1 * cz;
 
-    float density = snoise(position * 0.04 + uTime * 0.06);
-    vNoise = density * 0.5 + 0.5;
+    vec3 pos = vec3(x2, y2, z1);
+
+    // Mouse glow — particles near cursor brighten and warm up
+    // like shining a light through dust, no position distortion
+    vec2 mouseWorld = uMouse * vec2(80.0, 50.0);
+    float mouseDist = length(pos.xy - mouseWorld);
+    float mouseGlow = smoothstep(40.0, 0.0, mouseDist) * uMouseActive;
+
+    // Trail particles: alpha fades along tail
+    float trailAlpha = 1.0 - aTrail * 0.85;
+
+    // Distance-based alpha: inner orbits slightly brighter
+    float distFade = smoothstep(100.0, 20.0, aOrbitRadius) * 0.3 + 0.7;
+
     vColor = aColor;
-    vCluster = clusterStrength;
+    // Warm the color toward white where the mouse is
+    vColor = mix(vColor, vec3(1.0, 0.95, 0.9), mouseGlow * 0.5);
+    vAlpha = trailAlpha * distFade * (0.75 + 0.25 * sin(theta * 2.0 + aOrbitPhase)) + mouseGlow * 0.35;
+    vTrail = aTrail;
 
-    vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = uSize * aSize * uPixelRatio * (160.0 / -mvPosition.z);
+
+    float sizeBoost = 1.0 + mouseGlow * 0.3;
+    gl_PointSize = uSize * aSize * uPixelRatio * sizeBoost * (100.0 / -mvPosition.z);
   }
 `
 
 const FRAGMENT_SHADER = /* glsl */ `
   precision highp float;
   varying vec3  vColor;
-  varying float vCluster;
-  varying float vNoise;
+  varying float vAlpha;
+  varying float vTrail;
 
   void main() {
     float d = length(gl_PointCoord.xy - 0.5);
     if (d > 0.5) discard;
 
-    // Soft circular falloff.
     float core = smoothstep(0.5, 0.0, d);
+    // Comet heads get a sharper, brighter core
+    float brightness = mix(core * 0.75 + 0.25, core * 1.1 + 0.4, step(0.01, vTrail));
+    float alpha = vAlpha * brightness;
 
-    // Three-tier alpha: halo dust faint, small clusters mid, large clusters punchy.
-    float halo  = core * 0.20 + 0.05;
-    float small = core * 0.45 + 0.15;
-    float large = core * 0.65 + 0.22;
-
-    float alpha;
-    if (vCluster < 0.25) {
-      alpha = halo;
-    } else if (vCluster < 0.75) {
-      alpha = small;
-    } else {
-      alpha = large;
-    }
-
-    // Internal smoke texture.
-    float bright = mix(0.65, 1.5, vNoise);
-    vec3 col = vColor * bright;
-
-    gl_FragColor = vec4(col, alpha);
+    gl_FragColor = vec4(vColor, alpha);
   }
 `
 
-function NebulaPoints() {
-  const groupRef = useRef<THREE.Group>(null)
-  const { size, gl } = useThree()
+// Ring definitions
+type RingDef = {
+  radius: number
+  speed: number
+  tiltX: number
+  tiltZ: number
+  eccentricity: number
+  colorInner: [number, number, number]
+  colorOuter: [number, number, number]
+}
+
+const RINGS: RingDef[] = [
+  { radius: 18, speed: 0.35, tiltX: 0.1, tiltZ: 0.05, eccentricity: 0.05, colorInner: [255, 200, 100], colorOuter: [200, 100, 50] },
+  { radius: 28, speed: 0.25, tiltX: -0.15, tiltZ: 0.1, eccentricity: 0.12, colorInner: [180, 120, 220], colorOuter: [100, 50, 180] },
+  { radius: 38, speed: 0.18, tiltX: 0.2, tiltZ: -0.08, eccentricity: 0.08, colorInner: [100, 200, 230], colorOuter: [60, 120, 200] },
+  { radius: 48, speed: 0.14, tiltX: -0.05, tiltZ: 0.15, eccentricity: 0.15, colorInner: [255, 170, 60], colorOuter: [180, 80, 160] },
+  { radius: 58, speed: 0.11, tiltX: 0.12, tiltZ: -0.12, eccentricity: 0.1, colorInner: [160, 100, 220], colorOuter: [80, 40, 150] },
+  { radius: 68, speed: 0.08, tiltX: -0.18, tiltZ: 0.06, eccentricity: 0.18, colorInner: [80, 180, 200], colorOuter: [40, 100, 160] },
+  { radius: 80, speed: 0.06, tiltX: 0.08, tiltZ: -0.05, eccentricity: 0.06, colorInner: [200, 150, 100], colorOuter: [120, 60, 160] },
+]
+
+function OrbitalSystem() {
+  const pointsRef = useRef<THREE.Points>(null)
+  const { gl, size } = useThree()
   const mouseRef = useRef({ x: 0, y: 0, active: 0 })
 
   const { geometry, material } = useMemo(() => {
     const positions = new Float32Array(TOTAL * 3)
     const sizes = new Float32Array(TOTAL)
-    const seeds = new Float32Array(TOTAL)
+    const orbitRadius = new Float32Array(TOTAL)
+    const orbitSpeed = new Float32Array(TOTAL)
+    const orbitPhase = new Float32Array(TOTAL)
+    const orbitTiltX = new Float32Array(TOTAL)
+    const orbitTiltZ = new Float32Array(TOTAL)
+    const eccentricity = new Float32Array(TOTAL)
     const colors = new Float32Array(TOTAL * 3)
-    const cluster = new Float32Array(TOTAL)
-
-    const gauss = () => {
-      const u = 1 - Math.random()
-      const v = Math.random()
-      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
-    }
+    const trail = new Float32Array(TOTAL)
 
     let idx = 0
 
-    for (const c of ALL_CLUSTERS) {
-      const count = c.large ? LARGE_PARTICLES : SMALL_PARTICLES
-      const coreR = c.palette.core[0] / 255
-      const coreG = c.palette.core[1] / 255
-      const coreB = c.palette.core[2] / 255
-      const edgeR = c.palette.edge[0] / 255
-      const edgeG = c.palette.edge[1] / 255
-      const edgeB = c.palette.edge[2] / 255
+    // Orbit rings
+    for (let r = 0; r < RING_COUNT; r++) {
+      const ring = RINGS[r]
+      for (let p = 0; p < PARTICLES_PER_RING; p++) {
+        positions[idx * 3] = 0
+        positions[idx * 3 + 1] = 0
+        positions[idx * 3 + 2] = 0
 
-      // Large clusters get visibly bigger, brighter particles.
-      const sizeBase = c.large ? 2.2 : 0.95
-      const sizeJitter = c.large ? 1.3 : 0.7
+        sizes[idx] = 0.4 + Math.random() * 0.6
+        orbitRadius[idx] = ring.radius + (Math.random() - 0.5) * 4
+        orbitSpeed[idx] = ring.speed * (0.85 + Math.random() * 0.3)
+        orbitPhase[idx] = Math.random() * Math.PI * 2
+        orbitTiltX[idx] = ring.tiltX + (Math.random() - 0.5) * 0.05
+        orbitTiltZ[idx] = ring.tiltZ + (Math.random() - 0.5) * 0.05
+        eccentricity[idx] = ring.eccentricity + (Math.random() - 0.5) * 0.03
 
-      for (let i = 0; i < count; i++) {
-        const ox = gauss() * c.r * 0.55
-        const oy = gauss() * c.r * 0.55
-        const oz = gauss() * c.r * 0.30   // squashed → sheet-like
+        const t = Math.random()
+        colors[idx * 3] = (ring.colorInner[0] + (ring.colorOuter[0] - ring.colorInner[0]) * t) / 255
+        colors[idx * 3 + 1] = (ring.colorInner[1] + (ring.colorOuter[1] - ring.colorInner[1]) * t) / 255
+        colors[idx * 3 + 2] = (ring.colorInner[2] + (ring.colorOuter[2] - ring.colorInner[2]) * t) / 255
 
-        positions[idx * 3]     = c.x + ox
-        positions[idx * 3 + 1] = c.y + oy
-        positions[idx * 3 + 2] = c.z + oz
-
-        const r = Math.min(1, Math.sqrt(ox * ox + oy * oy + oz * oz) / c.r)
-        sizes[idx] = (sizeBase - r * (sizeBase * 0.35)) * (Math.random() * sizeJitter + 0.5)
-
-        seeds[idx] = Math.random() * 100
-
-        // Radial gradient: core color at center, edge color at the rim.
-        // Smoothstep gives a soft transition; tiny jitter avoids banding.
-        const t = Math.min(1, Math.max(0, r * r))   // bias gradient toward edge
-        const j = (Math.random() - 0.5) * 0.06
-        colors[idx * 3]     = Math.max(0, Math.min(1, coreR + (edgeR - coreR) * t + j))
-        colors[idx * 3 + 1] = Math.max(0, Math.min(1, coreG + (edgeG - coreG) * t + j))
-        colors[idx * 3 + 2] = Math.max(0, Math.min(1, coreB + (edgeB - coreB) * t + j))
-
-        cluster[idx] = c.large ? 1.0 : 0.5
+        trail[idx] = 0
         idx++
       }
     }
 
-    // Halo background dust — a quiet desaturated purple, matched to the palette.
-    for (let i = 0; i < HALO_PARTICLES; i++) {
-      positions[idx * 3]     = (Math.random() * 2 - 1) * HALO_X
-      positions[idx * 3 + 1] = (Math.random() * 2 - 1) * HALO_Y
-      positions[idx * 3 + 2] = (Math.random() * 2 - 1) * HALO_Z
+    // Comets with tails
+    for (let c = 0; c < COMET_COUNT; c++) {
+      const cRadius = 25 + Math.random() * 55
+      const cSpeed = 0.15 + Math.random() * 0.25
+      const cPhase = Math.random() * Math.PI * 2
+      const cTiltX = (Math.random() - 0.5) * 0.6
+      const cTiltZ = (Math.random() - 0.5) * 0.4
+      const cEcc = 0.3 + Math.random() * 0.4  // highly elliptical
 
-      sizes[idx] = Math.random() * 0.5 + 0.25
-      seeds[idx] = Math.random() * 100
-      const t = Math.random() * 0.35 + 0.45
-      colors[idx * 3]     = t * 0.55
-      colors[idx * 3 + 1] = t * 0.40
-      colors[idx * 3 + 2] = t * 0.85
-      cluster[idx] = 0
+      for (let t = 0; t < COMET_TAIL; t++) {
+        positions[idx * 3] = 0
+        positions[idx * 3 + 1] = 0
+        positions[idx * 3 + 2] = 0
+
+        const tailPos = t / COMET_TAIL
+        sizes[idx] = t === 0 ? 2.5 : (1.5 - tailPos * 1.2)
+        // Trail particles lag behind the head in phase
+        orbitRadius[idx] = cRadius
+        orbitSpeed[idx] = cSpeed
+        orbitPhase[idx] = cPhase - tailPos * 0.3  // spread behind
+        orbitTiltX[idx] = cTiltX
+        orbitTiltZ[idx] = cTiltZ
+        eccentricity[idx] = cEcc
+
+        // Comet color: bright white/cyan head → amber tail
+        colors[idx * 3] = (255 - tailPos * 100) / 255
+        colors[idx * 3 + 1] = (240 - tailPos * 120) / 255
+        colors[idx * 3 + 2] = (220 - tailPos * 160) / 255
+
+        trail[idx] = tailPos
+        idx++
+      }
+    }
+
+    // Asteroid belt — dense ring of tiny particles
+    const BELT_RADIUS = 52
+    const BELT_WIDTH = 8
+    for (let i = 0; i < ASTEROID_BELT; i++) {
+      positions[idx * 3] = 0
+      positions[idx * 3 + 1] = 0
+      positions[idx * 3 + 2] = 0
+
+      sizes[idx] = 0.2 + Math.random() * 0.3
+      orbitRadius[idx] = BELT_RADIUS + (Math.random() - 0.5) * BELT_WIDTH
+      orbitSpeed[idx] = 0.12 + Math.random() * 0.04
+      orbitPhase[idx] = Math.random() * Math.PI * 2
+      orbitTiltX[idx] = 0.05 + (Math.random() - 0.5) * 0.08
+      orbitTiltZ[idx] = (Math.random() - 0.5) * 0.06
+      eccentricity[idx] = Math.random() * 0.05
+
+      const grey = 0.3 + Math.random() * 0.3
+      colors[idx * 3] = grey * 0.8
+      colors[idx * 3 + 1] = grey * 0.6
+      colors[idx * 3 + 2] = grey * 1.0
+
+      trail[idx] = 0
+      idx++
+    }
+
+    // Core star particles — tight cluster at center, pulsing
+    for (let i = 0; i < CORE_PARTICLES; i++) {
+      positions[idx * 3] = 0
+      positions[idx * 3 + 1] = 0
+      positions[idx * 3 + 2] = 0
+
+      sizes[idx] = 0.8 + Math.random() * 1.5
+      orbitRadius[idx] = Math.random() * 8  // very tight
+      orbitSpeed[idx] = 0.5 + Math.random() * 1.0  // fast spin
+      orbitPhase[idx] = Math.random() * Math.PI * 2
+      orbitTiltX[idx] = (Math.random() - 0.5) * Math.PI  // all directions
+      orbitTiltZ[idx] = (Math.random() - 0.5) * Math.PI
+      eccentricity[idx] = Math.random() * 0.1
+
+      // Hot white/amber core
+      colors[idx * 3] = (230 + Math.random() * 25) / 255
+      colors[idx * 3 + 1] = (170 + Math.random() * 60) / 255
+      colors[idx * 3 + 2] = (60 + Math.random() * 80) / 255
+
+      trail[idx] = 0
       idx++
     }
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
-    geo.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
+    geo.setAttribute('aOrbitRadius', new THREE.BufferAttribute(orbitRadius, 1))
+    geo.setAttribute('aOrbitSpeed', new THREE.BufferAttribute(orbitSpeed, 1))
+    geo.setAttribute('aOrbitPhase', new THREE.BufferAttribute(orbitPhase, 1))
+    geo.setAttribute('aOrbitTiltX', new THREE.BufferAttribute(orbitTiltX, 1))
+    geo.setAttribute('aOrbitTiltZ', new THREE.BufferAttribute(orbitTiltZ, 1))
+    geo.setAttribute('aEccentricity', new THREE.BufferAttribute(eccentricity, 1))
     geo.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
-    geo.setAttribute('aCluster', new THREE.BufferAttribute(cluster, 1))
+    geo.setAttribute('aTrail', new THREE.BufferAttribute(trail, 1))
 
     const mat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uSize: { value: 1.0 },
         uPixelRatio: { value: gl.getPixelRatio() },
+        uSize: { value: 2.0 },
         uMouse: { value: new THREE.Vector2(0, 0) },
         uMouseActive: { value: 0 },
       },
@@ -341,70 +299,86 @@ function NebulaPoints() {
     return { geometry: geo, material: mat }
   }, [gl])
 
+  useEffect(() => {
+    const canvas = gl.domElement
+    const onMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      const x = (e.clientX - rect.left) / rect.width * 2 - 1
+      const y = -((e.clientY - rect.top) / rect.height * 2 - 1)
+      mouseRef.current = { x, y, active: 1 }
+    }
+    const onLeave = () => { mouseRef.current.active = 0 }
+    window.addEventListener('mousemove', onMove)
+    canvas.addEventListener('mouseleave', onLeave)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      canvas.removeEventListener('mouseleave', onLeave)
+    }
+  }, [gl])
+
   useFrame((_, delta) => {
     const mat = material as THREE.ShaderMaterial
-    const t = (mat.uniforms.uTime.value += delta)
+    mat.uniforms.uTime.value += delta
+    mat.uniforms.uMouse.value.x += (mouseRef.current.x - mat.uniforms.uMouse.value.x) * 0.08
+    mat.uniforms.uMouse.value.y += (mouseRef.current.y - mat.uniforms.uMouse.value.y) * 0.08
+    mat.uniforms.uMouseActive.value += (mouseRef.current.active - mat.uniforms.uMouseActive.value) * 0.06
     mat.uniforms.uPixelRatio.value = gl.getPixelRatio()
-
-    const m = (window as unknown as { __nebulaMouse?: { x: number; y: number; active: number } }).__nebulaMouse
-    if (m) {
-      const targetX = (m.x / size.width) * 2 - 1
-      const targetY = -((m.y / size.height) * 2 - 1)
-      mouseRef.current.x += (targetX - mouseRef.current.x) * 0.08
-      mouseRef.current.y += (targetY - mouseRef.current.y) * 0.08
-      mouseRef.current.active += (m.active - mouseRef.current.active) * 0.06
-    } else {
-      mouseRef.current.active += (0 - mouseRef.current.active) * 0.06
-    }
-    mat.uniforms.uMouse.value.set(mouseRef.current.x, mouseRef.current.y)
-    mat.uniforms.uMouseActive.value = mouseRef.current.active
-
-    if (groupRef.current) {
-      // Very slow drift — keep large nebulae approximately anchored.
-      groupRef.current.rotation.y = Math.sin(t * 0.04) * 0.06
-      groupRef.current.rotation.x = Math.sin(t * 0.06) * 0.04
-
-      const targetZ = mouseRef.current.x * 0.06
-      groupRef.current.rotation.z += (targetZ - groupRef.current.rotation.z) * 0.04
-    }
   })
 
-  return (
-    <group ref={groupRef}>
-      <points geometry={geometry} material={material} />
-    </group>
-  )
+  return <points ref={pointsRef} geometry={geometry} material={material} frustumCulled={false} />
+}
+
+function PostFX() {
+  const { gl, scene, camera, size } = useThree()
+  const composerRef = useRef<EffectComposer | null>(null)
+  const bloomRef = useRef<UnrealBloomPass | null>(null)
+
+  useEffect(() => {
+    const composer = new EffectComposer(gl)
+    composer.addPass(new RenderPass(scene, camera))
+
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(size.width, size.height),
+      1.0,   // strength
+      0.8,   // radius
+      0.05,  // threshold
+    )
+    composer.addPass(bloom)
+    composer.setSize(size.width, size.height)
+    composerRef.current = composer
+    bloomRef.current = bloom
+
+    return () => composer.dispose()
+  }, [gl, scene, camera])
+
+  useEffect(() => {
+    if (composerRef.current && bloomRef.current) {
+      composerRef.current.setSize(size.width, size.height)
+      bloomRef.current.resolution.set(size.width, size.height)
+    }
+  }, [size.width, size.height])
+
+  useFrame(() => {
+    composerRef.current?.render()
+  }, 1)
+
+  return null
 }
 
 export default function ProjectsParticles({ className }: { className?: string }) {
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    ;(window as unknown as { __nebulaMouse: { x: number; y: number; active: number } }).__nebulaMouse = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      active: 1,
-    }
-  }
-
-  const handleMouseLeave = () => {
-    const w = window as unknown as { __nebulaMouse?: { x: number; y: number; active: number } }
-    if (w.__nebulaMouse) w.__nebulaMouse.active = 0
-  }
-
   return (
     <div
       className={className}
-      style={{ width: '100%', height: '100%' }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
+      style={{ width: '100%', height: '100%', background: '#0a0010' }}
     >
       <Canvas
-        camera={{ position: [0, 0, 150], fov: 60, near: 1, far: 800 }}
+        camera={{ position: [0, 25, 90], fov: 60, near: 1, far: 500 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         dpr={[1, 2]}
-        style={{ background: 'transparent' }}
       >
-        <NebulaPoints />
+        <color attach="background" args={['#0a0010']} />
+        <OrbitalSystem />
+        <PostFX />
       </Canvas>
     </div>
   )

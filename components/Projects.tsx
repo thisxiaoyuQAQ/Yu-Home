@@ -77,7 +77,7 @@ function ProjectItem({ project, index, isVisible }: { project: typeof projects[0
                 ))}
               </div>
             </div>
-            <p className="text-white/40 text-sm leading-relaxed group-hover:text-white/60 transition-colors duration-300">
+            <p className="text-white/55 text-sm leading-relaxed group-hover:text-white/75 transition-colors duration-300">
               {project.description}
             </p>
           </div>
@@ -101,7 +101,8 @@ export default function Projects() {
   return (
     <section id="projects" className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden">
       <ProjectsParticles className="absolute inset-0 z-0" />
-      <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-transparent z-[1] pointer-events-none" />
+      {/* Radial vignette: darkens the center where text lives, keeps particles visible at edges */}
+      <div className="absolute inset-0 z-[1] pointer-events-none" style={{ background: 'radial-gradient(ellipse 65% 55% at 50% 50%, rgba(10,0,16,0.85) 0%, rgba(10,0,16,0.5) 50%, transparent 100%)' }} />
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0a0010] to-transparent pointer-events-none z-[2]" />
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0010] to-transparent pointer-events-none z-[2]" />
       
