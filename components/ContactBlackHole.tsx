@@ -243,12 +243,15 @@ function GalaxyPoints() {
       const ray = new THREE.Vector3(ndcX, ndcY, 0.5).unproject(camera)
       const origin = camera.position.clone()
       const dir = ray.sub(origin).normalize()
+      // group 在世界空间绕 X 轴旋转了 REST_PITCH，把世界射线变换到
+      // group 的局部空间需要应用逆旋转（绕 X 轴 -REST_PITCH）。
+      // 标准绕 X 轴旋转矩阵：y' = c·y - s·z, z' = s·y + c·z
       const c = Math.cos(-REST_PITCH)
       const sn = Math.sin(-REST_PITCH)
-      const oy = c * origin.y + sn * origin.z
-      const oz = -sn * origin.y + c * origin.z
-      const dy = c * dir.y + sn * dir.z
-      const dz = -sn * dir.y + c * dir.z
+      const oy = c * origin.y - sn * origin.z
+      const oz = sn * origin.y + c * origin.z
+      const dy = c * dir.y - sn * dir.z
+      const dz = sn * dir.y + c * dir.z
       if (Math.abs(dz) > 1e-5) {
         const t = -oz / dz
         if (t > 0) {
