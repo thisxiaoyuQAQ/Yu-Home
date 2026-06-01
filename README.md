@@ -268,3 +268,7 @@ UI 颜色在 `tailwind.config.js` 和 `app/globals.css` 中定义：
 ## 许可证
 
 MIT License
+
+## 友链
+
+[LINUX DO](https://linux.do/)
