@@ -18,7 +18,7 @@ const K = 0.55
 const FLOW = 0.10
 const OMEGA = 0.45
 const TWIST = 1.8
-const MOUSE_R = 280
+const MOUSE_R = 350
 
 export const skillsMouseState = {
   x: 0,
@@ -68,8 +68,8 @@ const VERT = /* glsl */ `
     float y0 = r * cos(theta);
     float dM   = length(vec2(x0, y0) - uMouse);
     float prox = (1.0 - smoothstep(0.0, uMouseR, dM)) * uMouseActive;
-    r     *= 1.0 + prox * 0.55;
-    theta += prox * 1.4;
+    r     *= 1.0 + prox * 0.25;
+    theta += prox * 0.6;
 
     // 5) final world position
     float x = -uL * 0.5 + uL * t;
@@ -94,14 +94,14 @@ const VERT = /* glsl */ `
     vec3 purple = vec3(110.0,  60.0, 230.0) / 255.0;
     vec3 base   = mix(purple, amber, t);
     vec3 warmWhite = vec3(1.0, 0.92, 0.78);
-    float energy = env * 0.5 + prox * 0.8;
+    float energy = env * 0.5 + prox * 0.4;
     vColor = mix(base, warmWhite, clamp(energy * 0.25, 0.0, 0.45)) * (1.05 + env * 0.25);
 
-    vAlpha = 0.65 + env * 0.55 + prox * 0.35;
+    vAlpha = 0.65 + env * 0.55 + prox * 0.15;
 
     vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uSize * aSize * uPixelRatio * (320.0 / -mv.z) * (1.0 + prox * 1.2);
+    gl_PointSize = uSize * aSize * uPixelRatio * (320.0 / -mv.z) * (1.0 + prox * 0.5);
   }
 `
 
@@ -123,6 +123,7 @@ const FRAG = /* glsl */ `
 function TornadoField() {
   const { camera, size, gl } = useThree()
   const mouseWorld = useRef(new THREE.Vector3())
+  const smoothMouse = useRef(new THREE.Vector2(0, 0))
 
   const { geometry, material } = useMemo(() => {
     const positions = new Float32Array(PARTICLE_COUNT * 3) // all zeros — shader computes final pos
@@ -189,11 +190,14 @@ function TornadoField() {
     const dir = v.sub(camera.position).normalize()
     const distZ = -camera.position.z / dir.z
     const mWorld = camera.position.clone().add(dir.multiplyScalar(distZ))
-    mat.uniforms.uMouse.value.set(mWorld.x, mWorld.y)
+    const sm = smoothMouse.current
+    sm.x += (mWorld.x - sm.x) * 0.04
+    sm.y += (mWorld.y - sm.y) * 0.04
+    mat.uniforms.uMouse.value.set(sm.x, sm.y)
 
     const targetActive = skillsMouseState.active ? 1 : 0
     const curActive = mat.uniforms.uMouseActive.value as number
-    mat.uniforms.uMouseActive.value = curActive + (targetActive - curActive) * 0.15
+    mat.uniforms.uMouseActive.value = curActive + (targetActive - curActive) * 0.02
   })
 
   return <points geometry={geometry} material={material} />
