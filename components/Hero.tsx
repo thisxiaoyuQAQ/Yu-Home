@@ -1,73 +1,125 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
-import FluidText from './FluidText'
+import { useEffect, useRef } from 'react'
+import { gsap } from 'gsap'
 
-const HeroParticles = dynamic(() => import('./HeroParticles'), {
-  ssr: false,
-  loading: () => <div className="absolute inset-0 bg-black" />
-})
+const titleLetters = ['Z', 'h', 'i', ' ', 'Y', 'u']
 
 export default function Hero() {
-  const [isLoaded, setIsLoaded] = useState(false)
+  const rootRef = useRef<HTMLElement>(null)
+  const topRailRef = useRef<HTMLDivElement>(null)
+  const subtitleRef = useRef<HTMLParagraphElement>(null)
+  const titleWrapRef = useRef<HTMLHeadingElement>(null)
+  const mottoLineRef = useRef<HTMLDivElement>(null)
+  const mottoLabelRef = useRef<HTMLParagraphElement>(null)
+  const mottoTextRef = useRef<HTMLParagraphElement>(null)
 
   useEffect(() => {
-    setIsLoaded(true)
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const root = rootRef.current
+
+    if (!root || reduceMotion) {
+      gsap.set(root?.querySelectorAll('[data-hero-reveal]') ?? [], { clearProps: 'all', autoAlpha: 1 })
+      return
+    }
+
+    const ctx = gsap.context(() => {
+      const letters = gsap.utils.toArray<HTMLElement>('[data-title-letter]')
+
+      gsap.set([topRailRef.current, subtitleRef.current, mottoLabelRef.current, mottoTextRef.current], {
+        autoAlpha: 0,
+        y: 18,
+      })
+      gsap.set(letters, {
+        autoAlpha: 0,
+        yPercent: 115,
+        rotateX: -18,
+        transformOrigin: '50% 100%',
+      })
+      gsap.set(titleWrapRef.current, { autoAlpha: 1 })
+      gsap.set(mottoLineRef.current, { scaleX: 0, transformOrigin: '0% 50%' })
+
+      const timeline = gsap.timeline({ defaults: { ease: 'power4.out' } })
+
+      timeline
+        .to(topRailRef.current, { autoAlpha: 1, y: 0, duration: 0.8 })
+        .to(subtitleRef.current, { autoAlpha: 1, y: 0, duration: 0.75 }, '-=0.42')
+        .to(
+          letters,
+          {
+            autoAlpha: 1,
+            yPercent: 0,
+            rotateX: 0,
+            duration: 1.05,
+            stagger: 0.055,
+          },
+          '-=0.28',
+        )
+        .to(mottoLineRef.current, { scaleX: 1, duration: 0.85 }, '-=0.38')
+        .to(
+          [mottoLabelRef.current, mottoTextRef.current],
+          { autoAlpha: 1, y: 0, duration: 0.85, stagger: 0.08 },
+          '-=0.58',
+        )
+    }, root)
+
+    return () => ctx.revert()
   }, [])
 
   return (
-    <section className="relative h-screen w-full flex items-center justify-center overflow-hidden bg-black">
-      <div className="absolute inset-0">
-        <HeroParticles className="w-full h-full" />
-      </div>
-      
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black pointer-events-none" />
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-[2]" />
-      
-      <div className="relative z-10 text-center px-6 pointer-events-none">
-        <div className={`transition-all duration-1000 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <FluidText text="Zhi Yu" className="pointer-events-auto" />
+    <section ref={rootRef} className="relative min-h-screen w-full overflow-hidden bg-black px-6 text-white">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center">
+        <div
+          ref={topRailRef}
+          data-hero-reveal
+          className="mb-16 flex items-center justify-between border-b border-white/10 pb-5 font-mono text-[0.65rem] uppercase tracking-[0.45em] text-white/40"
+        >
+          <span>Yu Home</span>
+          <span>Portfolio / 2026</span>
         </div>
-        
-        <div className={`mt-6 transition-all duration-1000 delay-300 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+
+        <div>
           <p
-            className="text-lg md:text-xl tracking-widest uppercase font-light"
-            style={{
-              background: 'linear-gradient(90deg, #ffaa3c 0%, #ffd089 50%, #b89cff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              textShadow: '0 0 30px rgba(255, 170, 60, 0.25)',
-              filter: 'drop-shadow(0 0 12px rgba(184, 156, 255, 0.35))',
-            }}
+            ref={subtitleRef}
+            data-hero-reveal
+            className="mb-5 font-mono text-xs uppercase tracking-[0.5em] text-white/40 md:text-sm"
           >
             Developer &amp; Creator
           </p>
+
+          <h1
+            ref={titleWrapRef}
+            data-hero-reveal
+            className="flex overflow-hidden text-[clamp(4.5rem,17vw,13rem)] font-semibold leading-[0.86] tracking-[-0.08em] text-white opacity-0"
+            aria-label="Zhi Yu"
+          >
+            {titleLetters.map((letter, index) => (
+              <span
+                key={`${letter}-${index}`}
+                data-title-letter
+                aria-hidden="true"
+                className={letter === ' ' ? 'inline-block w-[0.22em]' : 'inline-block will-change-transform'}
+              >
+                {letter === ' ' ? ' ' : letter}
+              </span>
+            ))}
+          </h1>
         </div>
 
-        <div className={`mt-10 transition-all duration-1000 delay-500 ease-out-expo ${isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+        <div className="mt-12 grid gap-8 border-t border-white/10 pt-10 md:grid-cols-[auto_1fr]">
+          <div ref={mottoLineRef} className="col-span-full -mt-10 h-px bg-white/25" />
+          <p ref={mottoLabelRef} data-hero-reveal className="font-mono text-xs uppercase tracking-[0.45em] text-white/40">
+            Motto
+          </p>
           <p
-            className="text-base md:text-lg tracking-[0.25em] font-light"
-            style={{
-              fontFamily: '"Noto Serif SC", "STSong", "KaiTi", serif',
-              background: 'linear-gradient(90deg, rgba(255, 208, 137, 0.85) 0%, rgba(255, 235, 200, 0.95) 50%, rgba(200, 180, 255, 0.85) 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              filter: 'drop-shadow(0 0 16px rgba(255, 180, 100, 0.3)) drop-shadow(0 0 24px rgba(160, 130, 255, 0.25))',
-            }}
+            ref={mottoTextRef}
+            data-hero-reveal
+            className="whitespace-nowrap text-[clamp(0.86rem,2vw,1.5rem)] font-light leading-loose tracking-[0.08em] text-white/80 md:tracking-[0.12em]"
           >
             为天地立心，为生民立命，为往圣继绝学，为万世开太平
           </p>
         </div>
-
       </div>
-      
-
-      
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl animate-float pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-white/[0.02] rounded-full blur-3xl animate-float pointer-events-none" style={{ animationDelay: '-3s' }} />
     </section>
   )
 }

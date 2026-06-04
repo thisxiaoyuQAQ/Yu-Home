@@ -25,8 +25,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI Variable', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei UI', 'Noto Sans CJK SC', 'sans-serif'],
+        display: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'PingFang SC', 'Microsoft YaHei UI', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'Cascadia Code', 'JetBrains Mono', 'Menlo', 'monospace'],
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '1rem' }],

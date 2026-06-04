@@ -1,11 +1,7 @@
 'use client'
 
-import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 import { useEffect, useState, useRef } from 'react'
-import dynamic from 'next/dynamic'
-import { skillsMouseState } from './SkillsParticles'
-
-const SkillsParticles = dynamic(() => import('./SkillsParticles'), { ssr: false })
+import { useIntersectionObserver } from '@/lib/hooks/useIntersectionObserver'
 
 const skills = [
   { name: 'Java', level: 90 },
@@ -32,20 +28,20 @@ function SkillBar({ skill, index, isVisible }: { skill: typeof skills[0]; index:
   return (
     <div
       ref={barRef}
-      className={`group transition-all duration-600 ease-out-expo pointer-events-auto ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}
+      className={`group transition-all duration-600 ease-out-expo ${isVisible ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'}`}
       style={{ transitionDelay: `${index * 100}ms` }}
     >
-      <div className="flex justify-between mb-3">
-        <span className="text-white/90 font-medium tracking-wide group-hover:text-white transition-colors duration-300">
+      <div className="mb-3 flex justify-between">
+        <span className="font-medium tracking-wide text-white/90 transition-colors duration-300 group-hover:text-white">
           {skill.name}
         </span>
-        <span className="text-white/40 text-sm tabular-nums group-hover:text-white/60 transition-colors duration-300">
+        <span className="font-mono text-sm tabular-nums text-white/40 transition-colors duration-300 group-hover:text-white/60">
           {skill.level}%
         </span>
       </div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-gradient-to-r from-white/80 to-white/40 rounded-full transition-all duration-1000 ease-out-expo"
+      <div className="h-px overflow-hidden bg-white/10">
+        <div
+          className="h-full bg-white transition-all duration-1000 ease-out-expo"
           style={{ width: `${width}%` }}
         />
       </div>
@@ -54,68 +50,39 @@ function SkillBar({ skill, index, isVisible }: { skill: typeof skills[0]; index:
 }
 
 export default function Skills() {
-  const { ref: sectionRef, isIntersecting } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 })
+  const { ref: sectionRef } = useIntersectionObserver<HTMLElement>({ threshold: 0.1 })
   const { ref: titleRef, isIntersecting: titleVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.5 })
   const { ref: skillsRef, isIntersecting: skillsVisible } = useIntersectionObserver<HTMLDivElement>({ threshold: 0.2 })
-  const containerRef = useRef<HTMLElement>(null)
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    skillsMouseState.x = e.clientX - rect.left
-    skillsMouseState.y = e.clientY - rect.top
-  }
-
-  const handleMouseEnter = () => {
-    skillsMouseState.active = true
-  }
-
-  const handleMouseLeave = () => {
-    skillsMouseState.active = false
-  }
 
   return (
-    <section 
-      ref={(el) => {
-        (sectionRef as React.MutableRefObject<HTMLElement | null>).current = el
-        containerRef.current = el
-      }}
-      id="skills" 
-      className="min-h-screen flex items-center justify-center px-6 py-32 bg-[#0a0010] relative overflow-hidden"
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+    <section
+      ref={sectionRef}
+      id="skills"
+      className="min-h-screen bg-black px-6 py-32 text-white"
     >
-      <SkillsParticles className="absolute inset-0 w-full h-full opacity-100 z-0" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-gray-900/20 via-transparent to-[#0a0010]/30 pointer-events-none z-[1]" />
-      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0a0010] to-transparent pointer-events-none z-[2]" />
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#0a0010] to-transparent pointer-events-none z-[2]" />
-      
-      <div className="max-w-4xl w-full relative z-10 pointer-events-none">
-        <div ref={titleRef} className="flex items-center gap-4 mb-16">
-          <div className={`h-px bg-gradient-to-l from-white/30 to-transparent flex-1 transition-all duration-1000 ease-out-expo ${titleVisible ? 'opacity-100 scale-x-100 origin-right' : 'opacity-0 scale-x-0'}`} />
-          <h2 
-            className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight transition-all duration-800 ease-out-expo ${titleVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}
-          >
-            <span className="text-gradient">Skills</span>
-          </h2>
-        </div>
-        
-        <div ref={skillsRef} className="grid gap-8">
+      <div className="mx-auto grid min-h-[70vh] max-w-6xl items-center gap-16 lg:grid-cols-[1.1fr_0.9fr]">
+        <div ref={skillsRef} className="order-2 grid gap-9 lg:order-1">
           {skills.map((skill, index) => (
-            <SkillBar 
-              key={skill.name} 
-              skill={skill} 
-              index={index} 
-              isVisible={skillsVisible} 
+            <SkillBar
+              key={skill.name}
+              skill={skill}
+              index={index}
+              isVisible={skillsVisible}
             />
           ))}
+
+          <div className={`mt-8 border-t border-white/10 pt-8 transition-all delay-700 duration-800 ease-out-expo ${skillsVisible ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}>
+            <p className="max-w-xl text-sm leading-relaxed text-white/40">
+              持续学习新技术，保持对前沿领域的探索热情。相信工具服务于创意，技术成就想象。
+            </p>
+          </div>
         </div>
-        
-        <div className={`mt-16 pt-8 border-t border-white/5 transition-all duration-800 delay-700 ease-out-expo ${skillsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <p className="text-white/40 text-sm leading-relaxed">
-            持续学习新技术，保持对前沿领域的探索热情。相信工具服务于创意，技术成就想象。
-          </p>
+
+        <div ref={titleRef} className="order-1 text-right lg:order-2">
+          <p className="mb-6 font-mono text-xs uppercase tracking-[0.45em] text-white/40">02 / Skills</p>
+          <h2 className={`text-5xl font-semibold tracking-[-0.06em] transition-all duration-800 ease-out-expo md:text-7xl lg:text-8xl ${titleVisible ? 'translate-x-0 opacity-100' : 'translate-x-12 opacity-0'}`}>
+            Skills
+          </h2>
         </div>
       </div>
     </section>
