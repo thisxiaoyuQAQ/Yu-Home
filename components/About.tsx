@@ -30,7 +30,10 @@ export default function About() {
         >
           <div className="space-y-7">
             <p className="text-2xl font-light leading-relaxed text-white/95 md:text-3xl">
-              你好，我是 <span className="font-medium text-white">Zhi Yu</span>，一名热爱技术与创意的开发者。
+              你好，我是 <span className="font-medium text-white">Zhi Yu</span>
+            </p>
+            <p className="text-2xl font-light leading-relaxed text-white/95 md:text-3xl">
+              一名热爱技术与创意的开发者。
             </p>
             <p className="text-lg leading-relaxed text-white/60 md:text-xl">
               专注于构建优雅、高性能的数字产品，将复杂的技术转化为简洁直观的用户体验。
